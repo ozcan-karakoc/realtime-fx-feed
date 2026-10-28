@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.SignalR;
+using OzcanDoviz.Api.Realtime;
 using OzcanDoviz.Core.Locks;
 using OzcanDoviz.Core.Pricing;
 using OzcanDoviz.Infrastructure.Persistence;
@@ -75,7 +77,7 @@ public sealed record AdminLock(RateLock Lock, LockStatus Status);
 [ApiController]
 [Route("api/v1/admin/locks")]
 [Authorize]
-public sealed class AdminLocksController(IRateLockStore store, IFeedSettingsStore settings, AppDbContext db) : ControllerBase
+public sealed class AdminLocksController(IRateLockStore store, IFeedSettingsStore settings, IHubContext<PriceHub> hub, AppDbContext db) : ControllerBase
 {
     [HttpGet]
     public async Task<IEnumerable<AdminLock>> List([FromQuery] int take = 200, CancellationToken ct = default)
@@ -130,6 +132,9 @@ public sealed class AdminLocksController(IRateLockStore store, IFeedSettingsStor
             Detail = $"{item!.Ref} {item.ProductCode} {item.Quantity} × {item.UnitPrice}",
         });
         await db.SaveChangesAsync(ct);
+
+        // Müşteri sayfası açıksa sonucu anında görsün.
+        await hub.Clients.Group(LockGroups.Name(item.Ref)).SendAsync(PriceHub.LockEvent, PublicLock.From(item), ct);
         return new AdminLock(item, item.StatusAt(DateTime.UtcNow));
     }
 }

@@ -235,6 +235,13 @@ button, input, select { font: inherit; }
 .insta-follow strong { display: block; }
 .insta-follow span span { color: var(--board-muted); font-size: 14px; }
 
+/* Sabitleme sonucu bildirimi */
+.bot-badge { position: absolute; top: -2px; right: -2px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: #e53935; color: #fff; font-size: 12px; font-weight: 700; display: grid; place-items: center; box-shadow: 0 0 0 2px var(--board-bg); }
+.bot-toast { position: fixed; right: 92px; bottom: 26px; z-index: 31; max-width: min(320px, calc(100vw - 120px)); text-align: left; display: flex; flex-direction: column; gap: 2px; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--board-line); border-left: 4px solid var(--up); background: var(--board-card); color: var(--board-text); box-shadow: 0 10px 30px rgba(0, 0, 0, .35); cursor: pointer; font: inherit; animation: toast-in .3s ease; }
+.bot-toast.cancelled { border-left-color: var(--down); }
+.bot-toast span { font-size: 13px; color: var(--board-muted); }
+@keyframes toast-in { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
+
 /* ---------- Yönetim paneli ---------- */
 .admin { display: grid; grid-template-columns: 252px 1fr; grid-template-rows: 64px 1fr auto; grid-template-areas: 'side top' 'side main' 'side foot'; min-height: 100vh; background: var(--bg); }
 .admin.collapsed { grid-template-columns: 0 1fr; }

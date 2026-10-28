@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import type { PublicPriceItem } from '../api'
 import { initials, money } from '../format'
 import { useLive } from '../useLivePrices'
@@ -42,6 +42,23 @@ const norm = (s: string) => s.toLocaleLowerCase('tr-TR').replace(/[^a-zçğıö�
 
 let nextId = 1
 
+// Bu tarayıcıda yapılan sabitlemeler: sayfa yenilense de sonucu bildirilsin (2 gün, en fazla 10).
+interface SavedLock { ref: string; status: PublicLock['status']; at: number }
+const SAVED_KEY = 'ozcan.locks'
+
+function loadSaved(): SavedLock[] {
+  try {
+    const list = JSON.parse(localStorage.getItem(SAVED_KEY) ?? '[]') as SavedLock[]
+    return Array.isArray(list) ? list.filter((s) => s?.ref && Date.now() - s.at < 2 * 86400000).slice(0, 10) : []
+  } catch {
+    return []
+  }
+}
+
+function storeSaved(list: SavedLock[]) {
+  try { localStorage.setItem(SAVED_KEY, JSON.stringify(list.slice(0, 10))) } catch { /* gizli pencere */ }
+}
+
 /** Sağ altta açılan asistan: fiyat sorma, kur sabitleme (süre panelden), referans sorgulama. */
 export function ChatBot() {
   const { message, content } = useLive()
@@ -54,6 +71,50 @@ export function ChatBot() {
   const listRef = useRef<HTMLDivElement>(null)
 
   const say = (from: Msg['from'], body: ReactNode) => setMsgs((m) => [...m, { id: nextId++, from, body }])
+
+  // ---- Sabitleme sonucu anında: panelde "Tamamlandı/İptal" basılınca SignalR "lock" olayı gelir. ----
+  const { watchLock, onLock } = useLive()
+  const [toast, setToast] = useState<PublicLock | null>(null)
+  const [unread, setUnread] = useState(0)
+  const openRef = useRef(open)
+  openRef.current = open
+
+  const notify = useCallback((u: PublicLock) => {
+    const saved = loadSaved()
+    const entry = saved.find((s) => s.ref === u.ref)
+    if (!entry || entry.status === u.status) return
+    entry.status = u.status
+    storeSaved(saved)
+    if (u.status === 'Completed') say('bot', <>✅ <b>{u.ref}</b> numaralı işleminiz tamamlandı. Teşekkür ederiz!</>)
+    else if (u.status === 'Cancelled') say('bot', <>⚠️ <b>{u.ref}</b> numaralı sabitleme iptal edildi. Bilgi için bize ulaşabilirsiniz.</>)
+    else return // süresi dolması burada bildirilmez; kartın geri sayımı zaten gösterir
+    say('bot', <LockCard lock={u} />)
+    if (!openRef.current) {
+      setToast(u)
+      setUnread((n) => n + 1)
+    }
+  }, [])
+
+  useEffect(() => onLock((u) => notify(u as unknown as PublicLock)), [onLock, notify])
+
+  // Bu tarayıcıda yapılmış sabitlemeler: izle; sayfa kapalıyken kapatılmışsa açılışta bildir.
+  useEffect(() => {
+    for (const s of loadSaved()) {
+      watchLock(s.ref)
+      if (s.status === 'Active')
+        fetch(`/api/v1/locks/${encodeURIComponent(s.ref)}`, { cache: 'no-store' })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((l: PublicLock | null) => l && notify(l))
+          .catch(() => {})
+    }
+  }, [watchLock, notify])
+
+  useEffect(() => { if (open) { setUnread(0); setToast(null) } }, [open])
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(null), 15000)
+    return () => clearTimeout(t)
+  }, [toast])
 
   useEffect(() => {
     if (!open || config) return
@@ -124,7 +185,14 @@ export function ChatBot() {
     <>
       <button className={`bot-fab ${open ? 'open' : ''}`} onClick={() => setOpen((v) => !v)} aria-label={open ? 'Asistanı kapat' : 'Asistanı aç'}>
         {open ? '✕' : '💬'}
+        {!open && unread > 0 && <span className="bot-badge" aria-label={`${unread} yeni bildirim`}>{unread}</span>}
       </button>
+      {toast && !open && (
+        <button className={`bot-toast ${toast.status.toLowerCase()}`} onClick={() => setOpen(true)} role="status">
+          <strong>{toast.status === 'Completed' ? '✅ İşleminiz tamamlandı' : '⚠️ Sabitleme iptal edildi'}</strong>
+          <span>{toast.ref} · {toast.productName}</span>
+        </button>
+      )}
       <aside className={`bot-panel ${open ? 'open' : ''}`} aria-hidden={!open} aria-label="Asistan">
         <header className="bot-head">
           <span className="brand-mark small">{initials(content?.shopName ?? 'DEMO')}</span>
@@ -177,6 +245,8 @@ export function ChatBot() {
               config={config}
               onCancel={() => setStep({ kind: 'menu' })}
               onDone={(lock) => {
+                storeSaved([{ ref: lock.ref, status: lock.status, at: Date.now() }, ...loadSaved()])
+                watchLock(lock.ref)
                 say('bot', <>Fiyatınız sabitlendi. Referans numaranızı saklayın ve süre dolmadan dükkanımıza başvurun.</>)
                 say('bot', <LockCard lock={lock} />)
                 setStep({ kind: 'menu' })
@@ -252,7 +322,11 @@ function LockForm({ item, side, config, onCancel, onDone, onError }: {
   )
 }
 
-function LockCard({ lock }: { lock: PublicLock }) {
+function LockCard({ lock: initial }: { lock: PublicLock }) {
+  const { onLock } = useLive()
+  const [lock, setLock] = useState(initial)
+  // Panelde kapatılınca sohbetteki eski kart da güncellenir (geri sayım durur).
+  useEffect(() => onLock((u) => { if (u.ref === initial.ref) setLock((l) => ({ ...l, status: u.status })) }), [onLock, initial.ref])
   const [now, setNow] = useState(() => Date.now())
   const expires = new Date(lock.expiresUtc).getTime()
   const live = lock.status === 'Active' && now < expires

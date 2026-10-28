@@ -22,7 +22,9 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddControllers()
     .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddProblemDetails();
-builder.Services.AddSignalR();
+// SignalR da enum'ları metin yazsın (ör. sabitleme durumu "Completed"); REST ile aynı biçim.
+builder.Services.AddSignalR()
+    .AddJsonProtocol(o => o.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 builder.Services.AddSingleton<MobileSocketHub>();
 builder.Services.AddSingleton<IPriceBroadcaster>(sp => sp.GetRequiredService<MobileSocketHub>());

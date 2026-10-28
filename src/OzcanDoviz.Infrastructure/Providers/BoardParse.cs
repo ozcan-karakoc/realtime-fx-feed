@@ -357,7 +357,7 @@ public static class BoardParse
         };
     }
 
-    private static decimal? ParseDecimal(string? text)
+    internal static decimal? ParseDecimal(string? text)
     {
         if (string.IsNullOrWhiteSpace(text)) return null;
         var s = text.Trim();

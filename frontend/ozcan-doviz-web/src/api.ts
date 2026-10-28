@@ -359,3 +359,21 @@ export interface DisplayScreen {
 }
 
 export interface FramePreview { text: string; hex: string; length: number }
+
+export interface CustomProvider {
+  key: string
+  name: string
+  url: string
+  enabled: boolean
+  protocol: 'auto' | 'raw' | 'socketio'
+  subscribeMessage?: string | null
+  origin?: string | null
+  dataPath: string
+  symbolField: string
+  buyField: string
+  sellField: string
+  nameField?: string | null
+  aliases?: string | null
+}
+
+export interface CustomProviderTest { ok: boolean; message: string; sample?: string | null; symbols: string[] }

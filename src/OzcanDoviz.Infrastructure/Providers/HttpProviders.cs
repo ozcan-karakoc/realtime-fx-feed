@@ -94,9 +94,14 @@ internal sealed class KitcoProvider(IHttpClientFactory http) : HttpProvider(http
     }
 }
 
-internal sealed class ProviderRegistry(IEnumerable<IPriceProvider> providers) : IProviderRegistry
+/// <summary>Hazır sağlayıcılar + panelden eklenen özel sağlayıcılar (kaydedilince anında güncellenir).</summary>
+public sealed class ProviderRegistry(IEnumerable<IPriceProvider> providers, CustomProviderService? custom = null) : IProviderRegistry
 {
-    public IReadOnlyList<IPriceProvider> All { get; } = providers.ToList();
+    private readonly IReadOnlyList<IPriceProvider> _builtIn = providers.ToList();
+
+    public IReadOnlyList<IPriceProvider> BuiltIn => _builtIn;
+
+    public IReadOnlyList<IPriceProvider> All => custom is null ? _builtIn : [.. _builtIn, .. custom.Providers];
 
     public IPriceProvider? Find(string? key) =>
         string.IsNullOrWhiteSpace(key)

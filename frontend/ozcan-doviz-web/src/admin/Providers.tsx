@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, json, type FeedSettings, type ProviderInfo } from '../api'
 import { categoryLabels } from '../format'
+import { CustomProviders } from './CustomProviders'
 
 interface TestResult { ok: boolean; message: string; symbolCount: number }
 
@@ -16,6 +17,10 @@ export function Providers() {
       setSettings(r.settings)
     })
   }, [])
+
+  // Özel sağlayıcı eklenince/silinince yalnızca liste tazelenir; formdaki kaydedilmemiş ayarlar korunur.
+  const reloadProviders = () =>
+    api<{ providers: ProviderInfo[] }>('/api/v1/admin/providers').then((r) => setProviders(r.providers))
 
   async function test(key: string) {
     setTests((t) => ({ ...t, [key]: 'running' }))
@@ -125,6 +130,7 @@ export function Providers() {
           <button className="btn primary" onClick={save}>Kaydet</button>
         </div>
       </section>
+      <CustomProviders onChanged={reloadProviders} />
     </div>
   )
 }

@@ -176,6 +176,24 @@ Panel → **Fiyat Sağlayıcıları**: her kategori (altın, döviz, parite, mad
 (ör. altın Sağlamoğlu, döviz Harem). **Fiyat Güncelleme**'deki ürün kartında tek bir ürün de ayrı sağlayıcıya bağlanabilir.
 Öncelik: ürün → kategori → genel. Bir ürünün sağlayıcısı düşerse ya da sembolü yoksa önce yedek, sonra genel sağlayıcıdan hesaplanır.
 
+## Kendi fiyat sağlayıcın (ws:// · wss:// · http)
+
+Panel → Fiyat Sağlayıcıları → **Kendi Sağlayıcın**: anlaşmalı bir akışın adresini girin.
+
+| Alan | Açıklama |
+| --- | --- |
+| Adres | `ws://`, `wss://` (canlı akış, bağlantı süreç boyunca açık, kopunca yeniden bağlanır) veya `http(s)://` (yoklama) |
+| Protokol | Otomatik / düz JSON / socket.io (Engine.IO 4: el sıkışma, ping/pong, `42[...]` paketleri) |
+| Abonelik mesajı, Origin | Bağlanınca gönderilecek mesaj ve gerekiyorsa Origin başlığı |
+| Veri yolu | Fiyat listesinin yeri: `data`, `result.items`, socket.io için `1.data`. Liste ya da sembol→nesne sözlüğü olabilir |
+| Sembol / alış / satış / ad alanı | Alan adları; iç içe alan noktayla (`quote.bid`). Sayılar "41,10" veya "41.10" olabilir |
+| Ortak koda eşle | `ALTIN=HASALTIN` gibi; marj kuralları ortak koda bağlı olduğundan eşleme önerilir |
+
+**Dene** kaydetmeden bağlanır, ilk fiyatlı mesajı (en fazla 10 sn) bekler, okunan sembolleri ve gelen ham mesajı gösterir.
+Kaydedilen sağlayıcı hemen genel/yedek/kategori/ürün seçimlerinde görünür (yeniden başlatma gerekmez); tanımlar
+`App_Data/providers.json` dosyasındadır. Kullanımdaki sağlayıcı silinemez. Sunucu girilen adrese bağlandığı için bu bölüm
+yalnızca yöneticiye açıktır ve her deneme/kayıt işlem izine yazılır.
+
 ## Mobil servis (brokerId)
 
 Panel → Site İçeriği → **Mobil Servis**'teki aracı kimliği (`brokerId`) ve istemci anahtarıyla (`X-Api-Key`):

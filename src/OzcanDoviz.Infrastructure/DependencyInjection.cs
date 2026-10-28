@@ -66,7 +66,10 @@ public static class DependencyInjection
         services.AddSingleton<IPriceProvider, AhlatciProvider>();
         services.AddSingleton<IPriceProvider, OzbeyProvider>();
         services.AddSingleton<IPriceProvider, KitcoProvider>();
-        services.AddSingleton<IProviderRegistry, ProviderRegistry>();
+        services.AddSingleton<CustomProviderService>();
+        services.AddSingleton<ICustomProviderService>(sp => sp.GetRequiredService<CustomProviderService>());
+        services.AddSingleton<ProviderRegistry>();
+        services.AddSingleton<IProviderRegistry>(sp => sp.GetRequiredService<ProviderRegistry>());
 
         services.AddSingleton<IPriceBoard, PriceBoard>();
         services.AddSingleton<IRateLockStore, RateLockStore>();

@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/OzcanDoviz.Api/OzcanDoviz.Api.csproj" />
+    <Project Path="src/OzcanDoviz.Core/OzcanDoviz.Core.csproj" />
+    <Project Path="src/OzcanDoviz.Infrastructure/OzcanDoviz.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/OzcanDoviz.Tests/OzcanDoviz.Tests.csproj" />
+  </Folder>
+</Solution>

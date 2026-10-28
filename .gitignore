@@ -1,0 +1,12 @@
+bin/
+obj/
+node_modules/
+dist/
+.vs/
+*.user
+*.db
+*.db-shm
+*.db-wal
+src/OzcanDoviz.Api/wwwroot/
+src/OzcanDoviz.Api/App_Data/
+appsettings.Development.local.json

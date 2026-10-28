@@ -1,0 +1,111 @@
+using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using OzcanDoviz.Api.Auth;
+using OzcanDoviz.Api.Realtime;
+using OzcanDoviz.Core.Pricing;
+using OzcanDoviz.Infrastructure;
+using OzcanDoviz.Infrastructure.Persistence;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// SQLite varsayılanı App_Data altındadır; klasör uygulama klasörüne göre açılır.
+Directory.CreateDirectory(Path.Combine(builder.Environment.ContentRootPath,
+    builder.Configuration["Storage:DataDirectory"] ?? "App_Data"));
+
+builder.Services.AddInfrastructure(builder.Configuration);
+
+builder.Services.AddControllers()
+    .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+builder.Services.AddProblemDetails();
+builder.Services.AddSignalR();
+
+builder.Services.AddSingleton<MobileSocketHub>();
+builder.Services.AddSingleton<IPriceBroadcaster>(sp => sp.GetRequiredService<MobileSocketHub>());
+builder.Services.AddSingleton<IPriceBroadcaster, SignalRBroadcaster>();
+
+// Yönetici girişi: JWT.
+builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.Section));
+builder.Services.AddSingleton<TokenService>();
+var jwt = builder.Configuration.GetSection(JwtOptions.Section).Get<JwtOptions>() ?? new JwtOptions();
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(o => o.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidIssuer = jwt.Issuer,
+        ValidAudience = jwt.Audience,
+        IssuerSigningKey = jwt.SigningKey(),
+        ClockSkew = TimeSpan.FromMinutes(1),
+    });
+builder.Services.AddAuthorization();
+
+// Kaba kuvvete karşı: IP başına dakikada 10 giriş denemesi.
+builder.Services.AddRateLimiter(o =>
+{
+    o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    o.AddPolicy("login", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) }));
+});
+
+var corsOrigins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? [];
+builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
+{
+    if (corsOrigins.Length > 0) p.WithOrigins(corsOrigins).AllowAnyHeader().AllowAnyMethod().AllowCredentials();
+}));
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(o =>
+{
+    o.SwaggerDoc("v1", new OpenApiInfo { Title = "Özcan Döviz API", Version = "v1" });
+    var scheme = new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" },
+    };
+    o.AddSecurityDefinition("Bearer", scheme);
+    o.AddSecurityRequirement(new OpenApiSecurityRequirement { [scheme] = [] });
+});
+
+var app = builder.Build();
+
+await DatabaseInitializer.InitializeAsync(app.Services);
+
+app.UseExceptionHandler();
+app.UseStatusCodePages();
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseDefaultFiles();
+app.UseStaticFiles();
+app.UseCors();
+app.UseRateLimiter();
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(30) });
+
+app.MapControllers();
+app.MapHub<PriceHub>(PriceHub.Path);
+app.Map(MobileSocketHub.Path, (HttpContext ctx, MobileSocketHub hub, AppDbContext db) => hub.HandleAsync(ctx, db));
+app.MapGet("/health", (IPriceBoard board) => Results.Ok(new
+{
+    status = board.Current.Items.Count > 0 ? "ok" : "waiting",
+    board.Current.Provider,
+    board.Current.UpdatedUtc,
+    board.Current.Error,
+}));
+
+// React SPA: /api, /hubs, /ws dışındaki yollar index.html'e düşer (wwwroot varsa).
+app.MapFallbackToFile("index.html");
+
+app.Run();
+
+public partial class Program;

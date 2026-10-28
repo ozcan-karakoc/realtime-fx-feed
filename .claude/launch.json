@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ozcan-api",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "src/OzcanDoviz.Api", "--launch-profile", "OzcanDoviz.Api"],
+      "port": 5095
+    }
+  ]
+}

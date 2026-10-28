@@ -59,7 +59,7 @@ export function Clients() {
           <div className="form-row">
             <label className="field">
               <span>İstemci adı</span>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="ör. Özcan Döviz iOS" required maxLength={100} />
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="ör. DEMO iOS" required maxLength={100} />
             </label>
             <label className="field grow2">
               <span>İzinli ürün kodları (boş = tümü)</span>

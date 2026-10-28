@@ -12,23 +12,33 @@ public sealed record BoardItem(
     string Direction,
     decimal SourceBuy,
     decimal SourceSell,
-    string SourceSymbol);
+    string SourceSymbol,
+    string Provider = "");
 
 /// <summary>Ham fiyata marj kurallarını uygular. Saf fonksiyon: dosya, saat, ağ yok.</summary>
 public static class PriceCalculator
 {
+    /// <summary>Tüm ürünler aynı sağlayıcının fiyatından hesaplanır.</summary>
     public static IReadOnlyList<BoardItem> Apply(
         IEnumerable<ProductRule> rules,
         IReadOnlyCollection<PriceQuote> quotes,
         IReadOnlyDictionary<string, BoardItem>? previous = null)
     {
-        var bySymbol = new Dictionary<string, PriceQuote>(StringComparer.OrdinalIgnoreCase);
-        foreach (var q in quotes) bySymbol.TryAdd(q.Symbol, q);
+        var bySymbol = Index(quotes);
+        return Apply(rules, _ => (bySymbol, ""), previous);
+    }
 
+    /// <summary>Her ürün kendi sağlayıcısının fiyatından hesaplanır (<paramref name="quotesFor"/> ürün → sembol tablosu, sağlayıcı).</summary>
+    public static IReadOnlyList<BoardItem> Apply(
+        IEnumerable<ProductRule> rules,
+        Func<ProductRule, (IReadOnlyDictionary<string, PriceQuote>? Quotes, string Provider)> quotesFor,
+        IReadOnlyDictionary<string, BoardItem>? previous = null)
+    {
         var list = new List<BoardItem>();
         foreach (var rule in rules.Where(r => r.Visible).OrderBy(r => r.Order).ThenBy(r => r.Name))
         {
-            if (!bySymbol.TryGetValue(rule.SourceSymbol, out var src)) continue;
+            var (bySymbol, provider) = quotesFor(rule);
+            if (bySymbol is null || !bySymbol.TryGetValue(rule.SourceSymbol, out var src)) continue;
             var buy = Round(Adjust(src.Buy, rule.Buy), rule.Decimals);
             var sell = Round(Adjust(src.Sell, rule.Sell), rule.Decimals);
             if (buy <= 0 || sell <= 0) continue;
@@ -39,9 +49,16 @@ public static class PriceCalculator
                 direction = sell > old.Sell ? "up" : sell < old.Sell ? "down" : old.Direction;
 
             list.Add(new BoardItem(rule.Code, rule.Name, rule.Category, buy, sell, rule.Decimals,
-                direction, src.Buy, src.Sell, src.Symbol));
+                direction, src.Buy, src.Sell, src.Symbol, provider));
         }
         return list;
+    }
+
+    public static Dictionary<string, PriceQuote> Index(IEnumerable<PriceQuote> quotes)
+    {
+        var bySymbol = new Dictionary<string, PriceQuote>(StringComparer.OrdinalIgnoreCase);
+        foreach (var q in quotes) bySymbol.TryAdd(q.Symbol, q);
+        return bySymbol;
     }
 
     public static decimal Adjust(decimal source, MarginSide side) => side.Mode switch
@@ -56,7 +73,7 @@ public static class PriceCalculator
         Math.Round(value, Math.Clamp(decimals, 0, 6), MidpointRounding.AwayFromZero);
 
     /// <summary>Kaydetmeden önce kural listesini doğrular; hata metinlerini döner.</summary>
-    public static IReadOnlyList<string> Validate(IReadOnlyList<ProductRule> rules)
+    public static IReadOnlyList<string> Validate(IReadOnlyList<ProductRule> rules, Func<string, bool>? providerExists = null)
     {
         var errors = new List<string>();
         var codes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -68,6 +85,8 @@ public static class PriceCalculator
             if (string.IsNullOrWhiteSpace(r.Name)) errors.Add($"{r.Code}: ürün adı boş olamaz.");
             if (string.IsNullOrWhiteSpace(r.SourceSymbol)) errors.Add($"{label}: kaynak sembol seçilmeli.");
             if (r.Decimals is < 0 or > 6) errors.Add($"{label}: ondalık 0-6 arası olmalı.");
+            if (!string.IsNullOrWhiteSpace(r.Provider) && providerExists is not null && !providerExists(r.Provider))
+                errors.Add($"{label}: bilinmeyen sağlayıcı {r.Provider}.");
             Check(r.Buy, "alış");
             Check(r.Sell, "satış");
 

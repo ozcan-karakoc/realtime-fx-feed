@@ -32,3 +32,11 @@ export const categoryLabels: Record<string, string> = {
   parite: 'Parite',
   maden: 'Değerli Maden',
 }
+
+/** Logo yuvarlağındaki harfler: iki kelimeyse baş harfleri ("Özcan Döviz" → ÖD), tek kelimeyse ilk iki harf ("DEMO" → DE). */
+export function initials(name?: string | null) {
+  const words = (name ?? '').trim().split(/\s+/).filter(Boolean)
+  if (words.length === 0) return '•'
+  const text = words.length > 1 ? words[0][0] + words[1][0] : words[0].slice(0, 2)
+  return text.toLocaleUpperCase('tr-TR')
+}

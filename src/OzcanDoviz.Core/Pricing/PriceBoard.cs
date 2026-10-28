@@ -12,13 +12,15 @@ public sealed record BoardSnapshot(
     public static readonly BoardSnapshot Empty = new("", "", DateTime.MinValue, [], "Henüz fiyat alınmadı.");
 }
 
-/// <summary>Son marjlı fiyat tablosu. Web, REST ve WebSocket aynı nesneden okur.</summary>
+/// <summary>Son marjlı fiyat tablosu. Web, REST, WebSocket ve kur sabitleme aynı nesneden okur.</summary>
 public interface IPriceBoard
 {
     BoardSnapshot Current { get; }
-    /// <summary>Sağlayıcının son ham sembolleri (marj ekranındaki kaynak listesi için).</summary>
+    /// <summary>Genel sağlayıcının son ham sembolleri.</summary>
     IReadOnlyList<PriceQuote> RawQuotes { get; }
-    void Publish(BoardSnapshot snapshot, IReadOnlyList<PriceQuote> raw);
+    /// <summary>Okunan her sağlayıcının son ham sembolleri (marj ekranındaki kaynak listesi için).</summary>
+    IReadOnlyDictionary<string, IReadOnlyList<PriceQuote>> RawByProvider { get; }
+    void Publish(BoardSnapshot snapshot, IReadOnlyDictionary<string, IReadOnlyList<PriceQuote>> rawByProvider);
 }
 
 /// <summary>Yeni tablo yayınlandığında çağrılır (SignalR, mobil WebSocket).</summary>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { api, ApiError, json, type MarginDocument, type MarginMode, type MarginSide, type ProductRule, type RawSymbol } from '../api'
+import { api, ApiError, json, type FeedSettings, type MarginDocument, type MarginMode, type MarginSide, type ProductRule, type ProviderInfo, type RawSymbol } from '../api'
 import { categoryLabels, dateTime, money } from '../format'
 
 const modes: { value: MarginMode; label: string; hint: string }[] = [
@@ -28,7 +28,9 @@ function adjust(source: number, side: MarginSide) {
 export function Margins() {
   const [doc, setDoc] = useState<MarginDocument | null>(null)
   const [products, setProducts] = useState<Row[]>([])
-  const [symbols, setSymbols] = useState<RawSymbol[]>([])
+  const [symbols, setSymbols] = useState<Record<string, RawSymbol[]>>({})
+  const [providers, setProviders] = useState<ProviderInfo[]>([])
+  const [feed, setFeed] = useState<FeedSettings | null>(null)
   const [filter, setFilter] = useState('all')
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -36,11 +38,34 @@ export function Margins() {
 
   useEffect(() => {
     api<MarginDocument>('/api/v1/admin/margins').then((d) => { setDoc(d); setProducts(withKeys(d.products)) })
-    const loadSymbols = () => api<RawSymbol[]>('/api/v1/admin/symbols').then(setSymbols).catch(() => {})
-    void loadSymbols()
-    const t = setInterval(loadSymbols, 5000)
-    return () => clearInterval(t)
+    api<{ settings: FeedSettings; providers: ProviderInfo[] }>('/api/v1/admin/providers').then((r) => {
+      setFeed(r.settings)
+      setProviders(r.providers)
+    })
   }, [])
+
+  // Ürün → kategori → genel sırasıyla hangi sağlayıcı kullanılıyor.
+  const providerFor = (p: ProductRule) =>
+    p.provider || feed?.categoryProviders?.[p.category] || feed?.activeProvider || ''
+  const usedProviders = useMemo(
+    () => [...new Set(products.map(providerFor).filter(Boolean))].sort().join(','),
+    [products, feed],
+  )
+
+  // Kullanılan her sağlayıcının ham sembolleri 5 sn'de bir yenilenir (kaynak sembol listesi ve önizleme).
+  useEffect(() => {
+    if (!usedProviders) return
+    let alive = true
+    const load = () => {
+      for (const key of usedProviders.split(','))
+        api<RawSymbol[]>(`/api/v1/admin/symbols?provider=${encodeURIComponent(key)}`)
+          .then((list) => alive && setSymbols((s) => ({ ...s, [key]: list })))
+          .catch(() => {})
+    }
+    load()
+    const t = setInterval(load, 5000)
+    return () => { alive = false; clearInterval(t) }
+  }, [usedProviders])
 
   useEffect(() => {
     if (!dirty) return
@@ -49,7 +74,12 @@ export function Margins() {
     return () => window.removeEventListener('beforeunload', warn)
   }, [dirty])
 
-  const bySymbol = useMemo(() => new Map(symbols.map((s) => [s.symbol.toUpperCase(), s])), [symbols])
+  const bySymbol = useMemo(() => {
+    const map: Record<string, Map<string, RawSymbol>> = {}
+    for (const [key, list] of Object.entries(symbols)) map[key] = new Map(list.map((s) => [s.symbol.toUpperCase(), s]))
+    return map
+  }, [symbols])
+  const providerName = (key: string) => providers.find((p) => p.key === key)?.displayName ?? key
   const sorted = useMemo(
     () => products.map((p, index) => ({ p, index })).sort((a, b) => a.p.order - b.p.order),
     [products],
@@ -139,15 +169,19 @@ export function Margins() {
           </div>
         )}
 
-        <datalist id="symbols">
-          {symbols.map((s) => <option key={s.symbol} value={s.symbol}>{s.name ?? ''}</option>)}
-        </datalist>
+        {Object.entries(symbols).map(([key, list]) => (
+          <datalist key={key} id={`symbols-${key}`}>
+            {list.map((s) => <option key={s.symbol} value={s.symbol}>{s.name ?? ''}</option>)}
+          </datalist>
+        ))}
 
         <div className="margin-grid">
           {sorted
             .filter(({ p }) => filter === 'all' || p.category === filter)
             .map(({ p, index }) => {
-              const src = bySymbol.get(p.sourceSymbol.toUpperCase())
+              const prov = providerFor(p)
+              const src = bySymbol[prov]?.get(p.sourceSymbol.toUpperCase())
+              const categoryDefault = feed?.categoryProviders?.[p.category] || feed?.activeProvider || ''
               return (
                 <div key={p._key} className={`margin-card ${p.visible ? '' : 'hidden-card'}`}>
                   <div className="margin-card-head">
@@ -163,8 +197,14 @@ export function Margins() {
                     <label className="mini">Kod
                       <input value={p.code} onChange={(e) => update(index, { code: e.target.value.toUpperCase() })} />
                     </label>
+                    <label className="mini">Sağlayıcı
+                      <select value={p.provider ?? ''} onChange={(e) => update(index, { provider: e.target.value || null })}>
+                        <option value="">Kategori: {providerName(categoryDefault)}</option>
+                        {providers.map((pr) => <option key={pr.key} value={pr.key}>{pr.displayName}</option>)}
+                      </select>
+                    </label>
                     <label className="mini">Kaynak sembol
-                      <input list="symbols" value={p.sourceSymbol} onChange={(e) => update(index, { sourceSymbol: e.target.value.toUpperCase() })}
+                      <input list={`symbols-${prov}`} value={p.sourceSymbol} onChange={(e) => update(index, { sourceSymbol: e.target.value.toUpperCase() })}
                         className={src ? '' : 'missing'} />
                     </label>
                     <label className="mini">Kategori
@@ -185,7 +225,9 @@ export function Margins() {
                   <SideField label={`${p.name} Satış`} tone="sell" side={p.sell} onChange={(sell) => update(index, { sell })}
                     source={src?.sell} decimals={p.decimals} />
 
-                  {!src && <div className="muted small">Kaynak sembol etkin sağlayıcıda yok; ürün yayında görünmez.</div>}
+                  {!src && symbols[prov] && (
+                    <div className="muted small">{p.sourceSymbol} {providerName(prov)} listesinde yok; ürün yedek sağlayıcıdan hesaplanır, orada da yoksa yayında görünmez.</div>
+                  )}
                 </div>
               )
             })}

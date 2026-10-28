@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
 using OzcanDoviz.Api.Auth;
 using OzcanDoviz.Core.Pricing;
 using OzcanDoviz.Infrastructure.Persistence;
@@ -35,13 +34,7 @@ public sealed class MobileSocketHub(IPriceBoard board, ILogger<MobileSocketHub> 
             return;
         }
 
-        var key = context.Request.Query["key"].ToString();
-        if (string.IsNullOrWhiteSpace(key))
-            key = context.Request.Headers["X-Api-Key"].ToString();
-        var hash = string.IsNullOrWhiteSpace(key) ? null : ApiKeys.Hash(key);
-        var client = hash is null
-            ? null
-            : await db.ApiClients.FirstOrDefaultAsync(c => c.KeyHash == hash && c.IsActive, context.RequestAborted);
+        var client = await ApiClientResolver.FindAsync(db, context.Request, context.RequestAborted);
         if (client is null)
         {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
@@ -60,7 +53,9 @@ public sealed class MobileSocketHub(IPriceBoard board, ILogger<MobileSocketHub> 
 
         try
         {
-            await connection.SendAsync(Serialize(PublicPrices.From(board.Current, connection.AllowedCodes)), context.RequestAborted);
+            var first = PublicPrices.From(board.Current, connection.AllowedCodes);
+            connection.LastItems = JsonSerializer.Serialize(first.Items, Json) + first.Stale;
+            await connection.SendAsync(Serialize(first), context.RequestAborted);
             await ReceiveLoopAsync(connection, context.RequestAborted);
         }
         catch (Exception ex) when (ex is WebSocketException or OperationCanceledException)
@@ -85,12 +80,28 @@ public sealed class MobileSocketHub(IPriceBoard board, ILogger<MobileSocketHub> 
         {
             try
             {
-                await connection.SendAsync(Serialize(PublicPrices.From(snapshot, connection.AllowedCodes)), cancellationToken);
+                // Filtreli istemci, yalnızca kendi ürünleri değişince mesaj alır.
+                var message = PublicPrices.From(snapshot, connection.AllowedCodes);
+                var items = JsonSerializer.Serialize(message.Items, Json) + message.Stale;
+                if (items == connection.LastItems) continue;
+                connection.LastItems = items;
+                await connection.SendAsync(Serialize(message), cancellationToken);
             }
             catch (Exception ex) when (ex is WebSocketException or ObjectDisposedException)
             {
                 _connections.TryRemove(id, out _);
             }
+        }
+    }
+
+    /// <summary>Site içeriği değişince bağlı mobil istemcilere haber verir; istemci içeriği REST'ten yeniden çeker.</summary>
+    public async Task NotifyContentChangedAsync(CancellationToken cancellationToken)
+    {
+        var payload = Encoding.UTF8.GetBytes("""{"type":"content-updated"}""");
+        foreach (var (id, connection) in _connections)
+        {
+            try { await connection.SendAsync(payload, cancellationToken); }
+            catch (Exception ex) when (ex is WebSocketException or ObjectDisposedException) { _connections.TryRemove(id, out _); }
         }
     }
 
@@ -119,6 +130,7 @@ public sealed class MobileSocketHub(IPriceBoard board, ILogger<MobileSocketHub> 
         public string ClientName { get; } = clientName;
         public IReadOnlySet<string> AllowedCodes { get; } = allowedCodes;
         public DateTime ConnectedUtc { get; } = DateTime.UtcNow;
+        public string? LastItems { get; set; }
 
         // WebSocket aynı anda tek gönderim kabul eder; yayın ve pong çakışmasın.
         public async Task SendAsync(byte[] payload, CancellationToken ct)

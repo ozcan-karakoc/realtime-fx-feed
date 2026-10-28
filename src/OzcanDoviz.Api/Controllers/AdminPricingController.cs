@@ -9,7 +9,13 @@ using OzcanDoviz.Infrastructure.Pricing;
 
 namespace OzcanDoviz.Api.Controllers;
 
-public sealed record FeedSettingsRequest(string ActiveProvider, string? FallbackProvider, int PollSeconds, string ShopName);
+public sealed record FeedSettingsRequest(
+    string ActiveProvider,
+    string? FallbackProvider,
+    int PollSeconds,
+    string ShopName,
+    Dictionary<string, string>? CategoryProviders = null,
+    RateLockSettings? RateLock = null);
 public sealed record RawSymbol(string Symbol, string? Name, decimal Buy, decimal Sell);
 
 [ApiController]
@@ -31,7 +37,7 @@ public sealed class AdminPricingController(
     public async Task<ActionResult<MarginDocument>> SaveMargins(MarginDocument document, CancellationToken ct)
     {
         document.Products ??= [];
-        var errors = PriceCalculator.Validate(document.Products);
+        var errors = PriceCalculator.Validate(document.Products, key => providers.Find(key) is not null);
         if (errors.Count > 0)
             return ValidationProblem(new ValidationProblemDetails(new Dictionary<string, string[]> { ["products"] = errors.ToArray() })
             {
@@ -65,19 +71,30 @@ public sealed class AdminPricingController(
             return BadRequest(new ProblemDetails { Title = $"Bilinmeyen sağlayıcı: {request.ActiveProvider}" });
         if (!string.IsNullOrWhiteSpace(request.FallbackProvider) && providers.Find(request.FallbackProvider) is null)
             return BadRequest(new ProblemDetails { Title = $"Bilinmeyen yedek sağlayıcı: {request.FallbackProvider}" });
+        var unknown = (request.CategoryProviders ?? []).Values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v) && providers.Find(v) is null);
+        if (unknown is not null)
+            return BadRequest(new ProblemDetails { Title = $"Bilinmeyen kategori sağlayıcısı: {unknown}" });
 
+        // Kur sabitleme ayarı ayrı sayfadan da gönderilebilir; gönderilmezse mevcut ayar korunur.
+        var current = await settings.GetAsync(ct);
         var saved = await settings.SaveAsync(new FeedSettings
         {
             ActiveProvider = request.ActiveProvider.Trim().ToLowerInvariant(),
             FallbackProvider = string.IsNullOrWhiteSpace(request.FallbackProvider) ? null : request.FallbackProvider.Trim().ToLowerInvariant(),
             PollSeconds = request.PollSeconds,
-            ShopName = string.IsNullOrWhiteSpace(request.ShopName) ? "Özcan Döviz" : request.ShopName.Trim(),
+            ShopName = string.IsNullOrWhiteSpace(request.ShopName) ? "DEMO" : request.ShopName.Trim(),
+            CategoryProviders = (request.CategoryProviders ?? current.CategoryProviders)
+                .Where(kv => !string.IsNullOrWhiteSpace(kv.Value))
+                .ToDictionary(kv => kv.Key.Trim().ToLowerInvariant(), kv => kv.Value.Trim().ToLowerInvariant(), StringComparer.OrdinalIgnoreCase),
+            RateLock = request.RateLock ?? current.RateLock,
         }, ct);
         db.AuditEntries.Add(new AuditEntry
         {
             User = User.Identity?.Name ?? "",
             Action = "providers.save",
-            Detail = $"etkin={saved.ActiveProvider}, yedek={saved.FallbackProvider}, {saved.PollSeconds}s",
+            Detail = $"etkin={saved.ActiveProvider}, yedek={saved.FallbackProvider}, {saved.PollSeconds}s, " +
+                     $"kategoriler={string.Join(';', saved.CategoryProviders.Select(kv => kv.Key + ":" + kv.Value))}, " +
+                     $"sabitleme={(saved.RateLock.Enabled ? saved.RateLock.Minutes + "dk" : "kapalı")}",
         });
         await db.SaveChangesAsync(ct);
         refresh.Request();
@@ -104,8 +121,23 @@ public sealed class AdminPricingController(
 
     /// <summary>Etkin sağlayıcının ham sembolleri: marj ekranındaki "kaynak sembol" listesi.</summary>
     [HttpGet("symbols")]
-    public IEnumerable<RawSymbol> Symbols() =>
-        board.RawQuotes.OrderBy(q => q.Symbol).Select(q => new RawSymbol(q.Symbol, q.Name, q.Buy, q.Sell));
+    public async Task<ActionResult<IEnumerable<RawSymbol>>> Symbols([FromQuery] string? provider, CancellationToken ct)
+    {
+        var key = string.IsNullOrWhiteSpace(provider) ? board.Current.Provider : provider;
+        var p = providers.Find(key);
+        if (p is null) return NotFound(new ProblemDetails { Title = $"Bilinmeyen sağlayıcı: {key}" });
+
+        IReadOnlyList<Core.Prices.PriceQuote> quotes;
+        if (board.RawByProvider.TryGetValue(p.Key, out var known) && known.Count > 0)
+            quotes = known;
+        else
+        {
+            // Henüz hiçbir ürün bu sağlayıcıyı kullanmıyor: seçim ekranı için bir kez okunur.
+            try { quotes = await p.GetQuotesAsync(ct); }
+            catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested) { quotes = []; }
+        }
+        return Ok(quotes.OrderBy(q => q.Symbol).Select(q => new RawSymbol(q.Symbol, q.Name, q.Buy, q.Sell)));
+    }
 
     /// <summary>Panel özeti: kaynak + marjlı fiyat, hata, bağlı mobil soketler.</summary>
     [HttpGet("live")]
@@ -116,7 +148,8 @@ public sealed class AdminPricingController(
         board.Current.UpdatedUtc,
         board.Current.Error,
         board.Current.Items,
-        rawCount = board.RawQuotes.Count,
+        rawCount = board.RawByProvider.Values.Sum(q => q.Count),
+        feeds = board.RawByProvider.Select(kv => new { provider = kv.Key, count = kv.Value.Count }),
         mobileConnections = sockets.Connections().Select(c => new { c.ClientId, c.ClientName, c.ConnectedUtc }),
     };
 }

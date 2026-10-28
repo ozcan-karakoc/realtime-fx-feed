@@ -42,7 +42,7 @@ export function Dashboard() {
       {live?.error && <div className="alert warn">{live.error}</div>}
 
       <section className="panel">
-        <div className="form-title">Canlı Fiyatlar (kaynak → marjlı)</div>
+        <div className="form-title">Canlı Fiyatlar (kaynak → marjlı) · {live?.providerName}</div>
         <div className="table-wrap">
           <table className="data-table">
             <thead>
@@ -57,7 +57,7 @@ export function Dashboard() {
                 <tr key={i.code}>
                   <td><strong>{i.name}</strong> <span className="muted">{i.code}</span></td>
                   <td>{categoryLabels[i.category] ?? i.category}</td>
-                  <td className="mono">{i.sourceSymbol}</td>
+                  <td className="mono">{i.sourceSymbol} <span className="badge">{i.provider}</span></td>
                   <td className="num mono">{money(i.sourceBuy, i.decimals)}</td>
                   <td className="num mono">{money(i.sourceSell, i.decimals)}</td>
                   <td className="num mono buy">{money(i.buy, i.decimals)}</td>

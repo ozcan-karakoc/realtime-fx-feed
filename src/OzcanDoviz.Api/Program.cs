@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using OzcanDoviz.Api.Auth;
@@ -8,6 +9,7 @@ using OzcanDoviz.Api.Realtime;
 using OzcanDoviz.Core.Pricing;
 using OzcanDoviz.Infrastructure;
 using OzcanDoviz.Infrastructure.Persistence;
+using OzcanDoviz.Infrastructure.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -47,6 +49,11 @@ builder.Services.AddRateLimiter(o =>
     o.AddPolicy("login", ctx => RateLimitPartition.GetFixedWindowLimiter(
         ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) }));
+    // Mesaj botundan kur sabitleme: IP başına 10 dakikada RateLimits:LocksPer10Minutes (varsayılan 5) istek.
+    var lockLimit = builder.Configuration.GetValue("RateLimits:LocksPer10Minutes", 5);
+    o.AddPolicy("lock", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = lockLimit, Window = TimeSpan.FromMinutes(10) }));
 });
 
 var corsOrigins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? [];
@@ -58,7 +65,7 @@ builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(o =>
 {
-    o.SwaggerDoc("v1", new OpenApiInfo { Title = "Özcan Döviz API", Version = "v1" });
+    o.SwaggerDoc("v1", new OpenApiInfo { Title = "DEMO Fiyat API", Version = "v1" });
     var scheme = new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -86,6 +93,17 @@ if (app.Environment.IsDevelopment())
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
+// Panelden yüklenen fotoğraflar: App_Data/uploads → /media
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(app.Services.GetRequiredService<MediaStorage>().Root),
+    RequestPath = "/media",
+    OnPrepareResponse = ctx =>
+    {
+        ctx.Context.Response.Headers.XContentTypeOptions = "nosniff";
+        ctx.Context.Response.Headers.CacheControl = "public,max-age=604800";
+    },
+});
 app.UseCors();
 app.UseRateLimiter();
 app.UseAuthentication();
@@ -103,7 +121,13 @@ app.MapGet("/health", (IPriceBoard board) => Results.Ok(new
     board.Current.Error,
 }));
 
-// React SPA: /api, /hubs, /ws dışındaki yollar index.html'e düşer (wwwroot varsa).
+// Bilinmeyen API yolu gerçek 404'tür; SPA'nın index.html'i dönmez (istemci HTML'i JSON sanıp önbelleğe almasın).
+// /media buraya eklenmez: bir uç eşleşirse statik dosya katmanı devre dışı kalır ve fotoğraflar sunulmaz.
+// Olmayan fotoğraf zaten 404 döner (index.html geri dönüşü uzantılı yolları kapsamaz).
+foreach (var prefix in new[] { "/api", "/hubs", "/ws" })
+    app.MapFallback(prefix + "/{**rest}", () => Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Adres bulunamadı."));
+
+// React SPA: diğer yollar index.html'e düşer (wwwroot varsa).
 app.MapFallbackToFile("index.html");
 
 app.Run();

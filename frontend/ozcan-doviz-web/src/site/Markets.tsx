@@ -1,58 +1,31 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 import type { PublicPriceItem } from '../api'
 import { categoryLabels, money, time } from '../format'
-import { useLivePrices } from '../useLivePrices'
+import { useLive } from '../useLivePrices'
 
 const groups: { title: string; categories: string[] }[] = [
   { title: 'Altın Fiyatları', categories: ['altin'] },
   { title: 'Döviz Kurları', categories: ['doviz', 'parite', 'maden'] },
 ]
 
-/** Herkese açık fiyat ekranı. Değişen satır kısa süre yeşil/kırmızı yanar. */
-export function PublicBoard() {
-  const { message, state } = useLivePrices()
-  const [shopName, setShopName] = useState('Özcan Döviz')
-  const [clock, setClock] = useState(() => new Date())
-  const flashes = useFlashes(message?.items ?? [])
-
-  useEffect(() => {
-    fetch('/api/v1/prices')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((b) => b?.shopName && setShopName(b.shopName))
-      .catch(() => {})
-    const t = setInterval(() => setClock(new Date()), 1000)
-    return () => clearInterval(t)
-  }, [])
-
-  useEffect(() => { document.title = `${shopName} | Canlı Altın ve Döviz` }, [shopName])
-
+/** Canlı Piyasalar: tüm ürünler. Değişen satır kısa süre yeşil/kırmızı yanar. */
+export function Markets() {
+  const { message } = useLive()
   const items = message?.items ?? []
+  const flashes = useFlashes(items)
 
   return (
-    <div className="board">
-      <header className="board-head">
-        <div className="brand">
-          <span className="brand-mark">ÖD</span>
-          <div>
-            <h1>{shopName}</h1>
-            <p>Canlı altın ve döviz fiyatları</p>
-          </div>
-        </div>
-        <div className="board-meta">
-          <span className={`live-dot ${state}`} />
-          <span>{state === 'live' ? (message?.stale ? 'Gecikmeli' : 'Canlı') : state === 'reconnecting' ? 'Yeniden bağlanıyor' : state === 'offline' ? 'Bağlantı yok' : 'Bağlanıyor'}</span>
-          <span className="sep">·</span>
-          <span className="mono">{clock.toLocaleTimeString('tr-TR')}</span>
-        </div>
-      </header>
-
-      <main className="board-grid">
+    <div className="section">
+      <div className="section-head">
+        <h2>Canlı Piyasalar</h2>
+        <span className="muted-light">Son güncelleme: {time(message?.updatedUtc)}</span>
+      </div>
+      <div className="board-grid">
         {groups.map((g) => {
           const rows = items.filter((i) => g.categories.includes(i.category))
           return (
             <section key={g.title} className="board-card">
-              <h2>{g.title}</h2>
+              <h3>{g.title}</h3>
               <table className="price-table">
                 <thead>
                   <tr>
@@ -66,22 +39,13 @@ export function PublicBoard() {
                   {rows.length === 0 && (
                     <tr><td colSpan={4} className="empty">{message ? 'Bu grupta ürün yok.' : 'Fiyatlar yükleniyor…'}</td></tr>
                   )}
-                  {rows.map((r) => (
-                    <PriceRow key={r.code} item={r} flash={flashes[r.code]} />
-                  ))}
+                  {rows.map((r) => <PriceRow key={r.code} item={r} flash={flashes[r.code]} />)}
                 </tbody>
               </table>
             </section>
           )
         })}
-      </main>
-
-      <footer className="board-foot">
-        <span>Son güncelleme: {time(message?.updatedUtc)}</span>
-        <span className="sep">·</span>
-        <span>Fiyatlar bilgi amaçlıdır; işlem öncesi teyit ediniz.</span>
-        <Link to="/admin" className="foot-link">Yönetim</Link>
-      </footer>
+      </div>
     </div>
   )
 }

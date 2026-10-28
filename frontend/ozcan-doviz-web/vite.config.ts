@@ -15,6 +15,7 @@ export default defineConfig({
       '/hubs': { target: api, changeOrigin: true, ws: true },
       '/ws': { target: api, changeOrigin: true, ws: true },
       '/health': { target: api, changeOrigin: true },
+      '/media': { target: api, changeOrigin: true },
     },
   },
   build: {

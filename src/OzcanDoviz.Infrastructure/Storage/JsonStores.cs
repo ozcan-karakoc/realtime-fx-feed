@@ -26,6 +26,7 @@ internal sealed class MarginStore : IMarginStore
         {
             p.Code = p.Code.Trim().ToUpperInvariant();
             p.SourceSymbol = p.SourceSymbol.Trim().ToUpperInvariant();
+            p.Provider = string.IsNullOrWhiteSpace(p.Provider) ? null : p.Provider.Trim().ToLowerInvariant();
             p.Name = p.Name.Trim();
         }
         return _file.WriteAsync(document, cancellationToken);
@@ -48,6 +49,10 @@ internal sealed class FeedSettingsStore : IFeedSettingsStore
     public Task<FeedSettings> SaveAsync(FeedSettings settings, CancellationToken cancellationToken)
     {
         settings.PollSeconds = Math.Clamp(settings.PollSeconds, 2, 300);
+        settings.RateLock ??= new RateLockSettings();
+        settings.RateLock.Minutes = Math.Clamp(settings.RateLock.Minutes, 1, 240);
+        if (settings.RateLock.MaxQuantity <= 0) settings.RateLock.MaxQuantity = 1000;
+        settings.CategoryProviders = new Dictionary<string, string>(settings.CategoryProviders ?? [], StringComparer.OrdinalIgnoreCase);
         return _file.WriteAsync(settings, cancellationToken);
     }
 }

@@ -8,6 +8,8 @@ public sealed class PriceHub(IPriceBoard board) : Hub
 {
     public const string Path = "/hubs/prices";
     public const string PricesEvent = "prices";
+    /// <summary>Site içeriği değişti; istemci /api/v1/content'i yeniden çeker.</summary>
+    public const string ContentEvent = "content";
 
     public override async Task OnConnectedAsync()
     {

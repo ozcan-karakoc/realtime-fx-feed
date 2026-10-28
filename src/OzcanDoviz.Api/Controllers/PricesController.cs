@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using OzcanDoviz.Api.Auth;
 using OzcanDoviz.Api.Realtime;
 using OzcanDoviz.Core.Pricing;
@@ -27,12 +26,9 @@ public sealed class PricesController(IPriceBoard board, IFeedSettingsStore setti
     /// İstemcinin izinli ürün filtresi uygulanır.
     /// </summary>
     [HttpGet("client")]
-    public async Task<ActionResult<PublicPriceMessage>> ForClient([FromQuery] string? key, [FromServices] AppDbContext db, CancellationToken ct)
+    public async Task<ActionResult<PublicPriceMessage>> ForClient([FromServices] AppDbContext db, CancellationToken ct)
     {
-        key = string.IsNullOrWhiteSpace(key) ? Request.Headers["X-Api-Key"].ToString() : key;
-        if (string.IsNullOrWhiteSpace(key)) return Unauthorized();
-        var hash = ApiKeys.Hash(key);
-        var client = await db.ApiClients.AsNoTracking().FirstOrDefaultAsync(c => c.KeyHash == hash && c.IsActive, ct);
+        var client = await ApiClientResolver.FindAsync(db, Request, ct);
         if (client is null) return Unauthorized();
         return PublicPrices.From(board.Current, PublicPrices.ParseCodes(client.AllowedCodes));
     }

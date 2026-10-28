@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, json, type FeedSettings, type ProviderInfo } from '../api'
+import { categoryLabels } from '../format'
 
 interface TestResult { ok: boolean; message: string; symbolCount: number }
 
@@ -60,6 +61,7 @@ export function Providers() {
                     <input type="radio" name="active" checked={active} onChange={() => setSettings({ ...settings, activeProvider: p.key })} />
                     <span>
                       <strong>{p.displayName}</strong>
+                      {active && <span className="badge primary">Genel</span>}
                       <span className={`badge ${p.transport === 'Socket' ? 'ok' : ''}`}>{p.transport === 'Socket' ? 'WebSocket' : 'HTTP'}</span>
                     </span>
                   </label>
@@ -73,6 +75,31 @@ export function Providers() {
                 </div>
               )
             })}
+          </div>
+
+          <h3 className="sub-title">Kategoriye göre sağlayıcı</h3>
+          <p className="muted small">
+            Örneğin altın Sağlamoğlu'ndan, döviz Harem'den gelsin. "Genel" seçilen kategori yukarıdaki etkin sağlayıcıyı kullanır.
+            Tek bir ürünü farklı sağlayıcıya bağlamak için Fiyat Güncelleme'deki ürün kartından seçin.
+          </p>
+          <div className="category-grid">
+            {Object.entries(categoryLabels).map(([key, label]) => (
+              <label key={key} className="field">
+                <span>{label}</span>
+                <select
+                  value={settings.categoryProviders?.[key] ?? ''}
+                  onChange={(e) => {
+                    const next = { ...(settings.categoryProviders ?? {}) }
+                    if (e.target.value) next[key] = e.target.value
+                    else delete next[key]
+                    setSettings({ ...settings, categoryProviders: next })
+                  }}
+                >
+                  <option value="">Genel ({providers.find((p) => p.key === settings.activeProvider)?.displayName})</option>
+                  {providers.map((p) => <option key={p.key} value={p.key}>{p.displayName}</option>)}
+                </select>
+              </label>
+            ))}
           </div>
 
           <div className="form-row">

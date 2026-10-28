@@ -21,6 +21,8 @@ public sealed class ProductRule
     public string Category { get; set; } = "altin";
     /// <summary>Sağlayıcıdaki kaynak sembol (ör. HASALTIN, USDTRY).</summary>
     public string SourceSymbol { get; set; } = "";
+    /// <summary>Bu ürünün fiyat sağlayıcısı (harem, saglamoglu…). Boşsa kategorinin, o da boşsa genel sağlayıcı.</summary>
+    public string? Provider { get; set; }
     public MarginSide Buy { get; set; } = new();
     public MarginSide Sell { get; set; } = new();
     public int Decimals { get; set; } = 2;
@@ -45,7 +47,26 @@ public sealed class FeedSettings
     public string? FallbackProvider { get; set; } = "saglamoglu";
     /// <summary>HTTP sağlayıcılar için yoklama aralığı (saniye).</summary>
     public int PollSeconds { get; set; } = 5;
-    public string ShopName { get; set; } = "Özcan Döviz";
+    public string ShopName { get; set; } = "DEMO";
+    /// <summary>Kategori → sağlayıcı (ör. altin → saglamoglu, doviz → harem). Olmayan kategori genel sağlayıcıyı kullanır.</summary>
+    public Dictionary<string, string> CategoryProviders { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public RateLockSettings RateLock { get; set; } = new();
+
+    /// <summary>Ürünün fiyatı hangi sağlayıcıdan gelir: ürün → kategori → genel.</summary>
+    public string ProviderFor(ProductRule rule) =>
+        !string.IsNullOrWhiteSpace(rule.Provider) ? rule.Provider
+        : CategoryProviders.TryGetValue(rule.Category, out var p) && !string.IsNullOrWhiteSpace(p) ? p
+        : ActiveProvider;
+}
+
+/// <summary>Sitedeki mesaj botunun kur sabitleme ayarları.</summary>
+public sealed class RateLockSettings
+{
+    public bool Enabled { get; set; } = true;
+    /// <summary>Sabitlenen fiyatın geçerlilik süresi (dakika).</summary>
+    public int Minutes { get; set; } = 15;
+    /// <summary>Tek sabitlemede en fazla miktar (adet/gram/birim).</summary>
+    public decimal MaxQuantity { get; set; } = 1000;
 }
 
 public interface IMarginStore

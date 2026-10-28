@@ -3,6 +3,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using OzcanDoviz.Core.Content;
+using OzcanDoviz.Core.Displays;
+using OzcanDoviz.Core.Locks;
+using OzcanDoviz.Infrastructure.Locks;
+using OzcanDoviz.Infrastructure.Social;
 using OzcanDoviz.Core.Pricing;
 using OzcanDoviz.Core.Providers;
 using OzcanDoviz.Core.Rates;
@@ -34,6 +39,22 @@ public static class DependencyInjection
         services.AddSingleton<IMarginStore, MarginStore>();
         services.AddSingleton<IFeedSettingsStore, FeedSettingsStore>();
 
+        // Site içeriği (kayan yazı, slaytlar, hakkımızda, iletişim) ve fotoğraflar: yerel dosya.
+        services.AddSingleton<ISiteContentStore, SiteContentStore>();
+        services.AddSingleton<IDisplayStore, DisplayStore>();
+        services.Configure<MediaOptions>(configuration.GetSection("Media"));
+        services.AddSingleton<MediaStorage>();
+        services.AddSingleton<IMediaStorage>(sp => sp.GetRequiredService<MediaStorage>());
+
+        // Instagram son gönderiler: typed client tekil tutulur (önbellek ve anahtar durumu süreç boyunca ortak).
+        services.AddHttpClient(nameof(InstagramFeed), client =>
+        {
+            client.BaseAddress = new Uri(configuration["Instagram:GraphBaseUrl"] ?? "https://graph.instagram.com/");
+            client.Timeout = TimeSpan.FromSeconds(10);
+        });
+        services.AddSingleton<IInstagramFeed>(sp => ActivatorUtilities.CreateInstance<InstagramFeed>(sp,
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(InstagramFeed))));
+
         // Fiyat sağlayıcıları.
         services.AddHttpClient(HttpProvider.HttpClientName, client =>
         {
@@ -48,6 +69,8 @@ public static class DependencyInjection
         services.AddSingleton<IProviderRegistry, ProviderRegistry>();
 
         services.AddSingleton<IPriceBoard, PriceBoard>();
+        services.AddSingleton<IRateLockStore, RateLockStore>();
+        services.AddSingleton<IRateLockService, RateLockService>();
         services.AddSingleton<PriceRefreshSignal>();
         services.AddHostedService<PriceWorker>();
 

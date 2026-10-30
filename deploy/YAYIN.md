@@ -64,6 +64,8 @@ powershell -ExecutionPolicy Bypass -File deploy\publish.ps1 -Update
 2. `publish\vitevitrin` içeriğini yükleyin, "üzerine yaz" deyin. **`App_Data` ve `appsettings.Production.json` pakette yoktur**, sunucudakiler korunur.
 3. `app_offline.htm` dosyasını silin.
 
+> **Sunucudaki `appsettings.Production.json` dosyasını silmeyin.** Güncelleme paketi bu dosyayı içermez; yüklemeden önce klasörü boşaltırsanız site açılmaz.
+
 ## 6. Sorun giderme
 
 | Belirti | Çözüm |

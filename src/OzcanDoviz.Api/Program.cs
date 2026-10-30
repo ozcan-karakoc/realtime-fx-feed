@@ -48,12 +48,14 @@ static async Task<WebApplication> BuildAppAsync(string[] args)
     builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.Section));
     builder.Services.AddSingleton<TokenService>();
     var jwt = builder.Configuration.GetSection(JwtOptions.Section).Get<JwtOptions>() ?? new JwtOptions();
+    // Anahtar açılışta denetlenir: eksikse her sayfa 500 vermek yerine açılış hata sayfası nedeni söyler.
+    var signingKey = jwt.SigningKey();
     builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         .AddJwtBearer(o => o.TokenValidationParameters = new TokenValidationParameters
         {
             ValidIssuer = jwt.Issuer,
             ValidAudience = jwt.Audience,
-            IssuerSigningKey = jwt.SigningKey(),
+            IssuerSigningKey = signingKey,
             ClockSkew = TimeSpan.FromMinutes(1),
         });
     builder.Services.AddAuthorization();

@@ -46,10 +46,21 @@ public static class DatabaseInitializer
         var userName = config["Demo:UserName"]?.Trim();
         var password = config["Demo:Password"];
         if (string.IsNullOrWhiteSpace(userName) || string.IsNullOrWhiteSpace(password)) return;
-        if (await db.AdminUsers.AnyAsync(u => u.UserName == userName, ct)) return;
+        var hasher = new PasswordHasher<AdminUser>();
+        var existing = await db.AdminUsers.FirstOrDefaultAsync(u => u.UserName == userName, ct);
+        if (existing is not null)
+        {
+            // Demo hesabının şifresi ayardan gelir; yönetici hesabına asla dokunulmaz.
+            if (existing.Role != AdminRoles.Demo
+                || hasher.VerifyHashedPassword(existing, existing.PasswordHash, password) != PasswordVerificationResult.Failed) return;
+            existing.PasswordHash = hasher.HashPassword(existing, password);
+            await db.SaveChangesAsync(ct);
+            logger.LogInformation("Demo hesabının şifresi ayardan güncellendi.");
+            return;
+        }
 
         var user = new AdminUser { UserName = userName, Role = AdminRoles.Demo };
-        user.PasswordHash = new PasswordHasher<AdminUser>().HashPassword(user, password);
+        user.PasswordHash = hasher.HashPassword(user, password);
         db.AdminUsers.Add(user);
         await db.SaveChangesAsync(ct);
         logger.LogInformation("Demo hesabı oluşturuldu: {User}.", user.UserName);

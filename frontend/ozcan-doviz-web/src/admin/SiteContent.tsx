@@ -436,7 +436,7 @@ function ContactTab({ content, patch, media, reloadMedia }: TabProps & { media: 
       <div className="form-row">
         {field('phone', 'Telefon', '0 (212) 000 00 00')}
         {field('whatsApp', 'WhatsApp', '90 5xx xxx xx xx')}
-        {field('email', 'E-posta', 'info@ornek.com')}
+        {field('email', 'E-posta', 'info@demo.com')}
       </div>
       {field('address', 'Adres')}
       {field('workingHours', 'Çalışma saatleri')}
@@ -626,7 +626,7 @@ const demoAbout = {
 const demoContact: Omit<SiteContent['contact'], 'locations'> = {
   phone: '0 (212) 000 00 00',
   whatsApp: '90 500 000 00 00',
-  email: 'info@ornek.com',
+  email: 'info@demo.com',
   address: 'Örnek Mah. Kuyumcular Cad. No: 1, Fatih / İstanbul',
   workingHours: 'Pazartesi - Cumartesi 09:00 - 19:00, Pazar kapalı',
   // Harita adresi demo ile doldurulmaz: Google Haritalar'dan dükkanın kendi yerleştirme adresi alınmalı.

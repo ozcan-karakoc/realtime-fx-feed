@@ -94,10 +94,13 @@ export function LiveProvider({ children }: { children: ReactNode }) {
         }, 5000)
       }
     }
-    void start()
+    // Geliştirmede React StrictMode efekti iki kez çalıştırıp ilkini hemen kapatır; başlangıç bir tur ertelenince
+    // kapanan ilk bağlantı hiç açılmaz ve konsola "stopped during negotiation" hatası düşmez.
+    const startTimer = setTimeout(() => void start(), 0)
 
     return () => {
       cancelled = true
+      clearTimeout(startTimer)
       connectionRef.current = null
       void connection.stop()
     }

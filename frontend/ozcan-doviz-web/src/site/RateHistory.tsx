@@ -65,7 +65,7 @@ export function RateHistory() {
     <div className="section history-page">
       <div className="section-head">
         <h2>{pages?.historyTitle ?? 'Geçmiş Kurlar'}</h2>
-        <div className="seg site">
+        <div className="seg on-site">
           {daysOptions.map((d) => (
             <button key={d} className={d === days ? 'active' : ''} onClick={() => setDays(d)}>{d === 7 ? '1 hafta' : d === 30 ? '1 ay' : '3 ay'}</button>
           ))}
@@ -89,7 +89,7 @@ export function RateHistory() {
             <div className="chart-head">
               <div>
                 <h3>{series?.name ?? '…'}</h3>
-                <span className="muted-light small">Günlük kapanış · piyasa verisi (Harem Altın)</span>
+                <span className="muted-light small">Günlük kapanış · piyasa verisi (Harem Altın){loading && series ? " · güncelleniyor…" : ""}</span>
               </div>
               {stats && (
                 <div className={`chart-change ${stats.change >= 0 ? 'up' : 'down'}`}>
@@ -245,7 +245,7 @@ function Calculator({ series }: { series: HistorySeries | null }) {
           </select>
         </label>
         <label>İşlem
-          <div className="seg site">
+          <div className="seg on-site">
             <button className={side === 'buy' ? 'active' : ''} onClick={() => setSide('buy')}>Almak istiyorum</button>
             <button className={side === 'sell' ? 'active' : ''} onClick={() => setSide('sell')}>Satmak istiyorum</button>
           </div>

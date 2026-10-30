@@ -282,9 +282,9 @@ button, input, select { font: inherit; }
 .board-grid.big .dir { font-size: 2vmin; width: 4vmin; }
 
 /* Geçmiş Kurlar */
-.seg.site { border-color: var(--board-line); }
-.seg.site button { color: var(--board-muted); border-right-color: var(--board-line); padding: 7px 14px; }
-.seg.site button.active { background: var(--gold); color: #1a1205; font-weight: 600; }
+.seg.on-site { border-color: var(--board-line); }
+.seg.on-site button { color: var(--board-muted); border-right-color: var(--board-line); padding: 7px 14px; }
+.seg.on-site button.active { background: var(--gold); color: #1a1205; font-weight: 600; }
 .history-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 20px; align-items: start; }
 .history-codes { position: sticky; top: 90px; display: flex; flex-direction: column; gap: 14px; }
 .codes-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--board-muted); margin-bottom: 6px; }

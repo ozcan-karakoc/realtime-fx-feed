@@ -6,6 +6,11 @@
   <ItemGroup>
     <ProjectReference Include="..\OzcanDoviz.Infrastructure\OzcanDoviz.Infrastructure.csproj" />
   </ItemGroup>
+  <!-- App_Data çalışma verisidir (sırlar, sabitlemeler, geçmiş): derlemeye/yayına girmez; demo verisini deploy\publish.ps1 seçerek ekler. -->
+  <ItemGroup>
+    <Content Remove="App_Data\**" />
+    <None Remove="App_Data\**" />
+  </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="OzcanDoviz.Tests" />
   </ItemGroup>

@@ -17,6 +17,18 @@ var builder = WebApplication.CreateBuilder(args);
 Directory.CreateDirectory(Path.Combine(builder.Environment.ContentRootPath,
     builder.Configuration["Storage:DataDirectory"] ?? "App_Data"));
 
+// SQLite'ta göreli "Data Source" uygulama klasörüne göre çözülür: IIS'te çalışma klasörü farklı olabilir.
+if (!string.Equals(builder.Configuration["Database:Provider"], "SqlServer", StringComparison.OrdinalIgnoreCase))
+{
+    var sqlite = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(
+        builder.Configuration.GetConnectionString("Default") ?? "Data Source=App_Data/ozcandoviz.db");
+    if (!Path.IsPathRooted(sqlite.DataSource))
+    {
+        sqlite.DataSource = Path.Combine(builder.Environment.ContentRootPath, sqlite.DataSource);
+        builder.Configuration["ConnectionStrings:Default"] = sqlite.ToString();
+    }
+}
+
 builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddControllers()

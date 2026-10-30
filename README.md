@@ -49,6 +49,14 @@ cd frontend/ozcan-doviz-web && npm run build
 
 Şema `EnsureCreated` ile kurulur. Tablolar değişirse EF migration'a geçin.
 
+### Yayına alma (FileZilla / IIS)
+
+`powershell -ExecutionPolicy Bypass -File deploy\publish.ps1` → `publish\vitevitrin\` (site + API tek uygulama, aynı alan adı).
+Üretim ayarları rastgele JWT anahtarı ve yönetici şifresiyle üretilir; şifre `publish\ILK-GIRIS.txt` dosyasındadır (yüklenmez).
+Adım adım kurulum, güncelleme ve sorun giderme: [deploy/YAYIN.md](deploy/YAYIN.md).
+
+Tanıtım broşürleri (Kıymetli Madenler, Döviz Büroları, Kuyumcular): [docs/tanitim](docs/tanitim).
+
 ## Mimari
 
 ```

@@ -10,3 +10,4 @@ dist/
 src/OzcanDoviz.Api/wwwroot/
 src/OzcanDoviz.Api/App_Data/
 appsettings.Development.local.json
+publish/

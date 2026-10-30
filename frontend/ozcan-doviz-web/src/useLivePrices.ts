@@ -1,6 +1,6 @@
 import { HubConnectionBuilder, HubConnectionState, LogLevel, type HubConnection } from '@microsoft/signalr'
 import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import type { PublicContent, PublicPriceMessage } from './api'
+import type { PublicContent, PublicNotice, PublicPriceMessage } from './api'
 
 export type LiveState = 'connecting' | 'live' | 'reconnecting' | 'offline'
 
@@ -20,10 +20,12 @@ interface Live {
   watchLock: (reference: string) => void
   /** Durum değişikliklerini dinle; dönen fonksiyon dinlemeyi bırakır. */
   onLock: (handler: (u: LockUpdate) => void) => () => void
+  /** Panelden gönderilen bildirimler ('notice') ve geri çekilenler ('removed', id). */
+  onNotice: (handler: (e: { type: 'notice'; notice: PublicNotice } | { type: 'removed'; id: string }) => void) => () => void
 }
 
 const LiveContext = createContext<Live>({
-  message: null, state: 'connecting', content: null, watchLock: () => {}, onLock: () => () => {},
+  message: null, state: 'connecting', content: null, watchLock: () => {}, onLock: () => () => {}, onNotice: () => () => {},
 })
 
 async function loadContent(): Promise<PublicContent | null> {
@@ -47,6 +49,8 @@ export function LiveProvider({ children }: { children: ReactNode }) {
   const connectionRef = useRef<HubConnection | null>(null)
   const watched = useRef(new Set<string>())
   const lockHandlers = useRef(new Set<(u: LockUpdate) => void>())
+  type NoticeEvent = { type: 'notice'; notice: PublicNotice } | { type: 'removed'; id: string }
+  const noticeHandlers = useRef(new Set<(e: NoticeEvent) => void>())
 
   const subscribe = (c: HubConnection, reference: string) => {
     if (c.state === HubConnectionState.Connected) c.invoke('WatchLock', reference).catch(() => {})
@@ -69,6 +73,8 @@ export function LiveProvider({ children }: { children: ReactNode }) {
     connection.on('prices', (m: PublicPriceMessage) => setMessage(m))
     connection.on('content', () => void refresh())
     connection.on('lock', (u: LockUpdate) => lockHandlers.current.forEach((h) => h(u)))
+    connection.on('notice', (n: PublicNotice) => noticeHandlers.current.forEach((h) => h({ type: 'notice', notice: n })))
+    connection.on('notice-removed', (id: string) => noticeHandlers.current.forEach((h) => h({ type: 'removed', id })))
     connection.onreconnecting(() => setState('reconnecting'))
     // Yeni bağlantı kimliği gruplarda değildir: izlenen referanslara yeniden abone olunur.
     connection.onreconnected(() => { setState('live'); void refresh(); resubscribe() })
@@ -109,7 +115,12 @@ export function LiveProvider({ children }: { children: ReactNode }) {
     return () => { lockHandlers.current.delete(handler) }
   }, [])
 
-  const value = useMemo(() => ({ message, state, content, watchLock, onLock }), [message, state, content, watchLock, onLock])
+  const onNotice = useCallback((handler: (e: NoticeEvent) => void) => {
+    noticeHandlers.current.add(handler)
+    return () => { noticeHandlers.current.delete(handler) }
+  }, [])
+
+  const value = useMemo(() => ({ message, state, content, watchLock, onLock, onNotice }), [message, state, content, watchLock, onLock, onNotice])
   return createElement(LiveContext.Provider, { value }, children)
 }
 

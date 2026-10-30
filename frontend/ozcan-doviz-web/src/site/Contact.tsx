@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { useLive } from '../useLivePrices'
+import { Branches } from './Branches'
 import { SocialRow } from './FloatingSocial'
 
 const MAP_PREFIX = 'https://www.google.com/maps/embed'
@@ -12,8 +13,12 @@ export function Contact() {
   const empty = !c.phone && !c.whatsApp && !c.email && !c.address && !c.workingHours
 
   return (
-    <article className="section page-article">
+    <>
+    <div className="page-banner">
+      <img src={c.imageUrl || '/demo/contact.jpg'} alt="" />
       <h2>İletişim</h2>
+    </div>
+    <article className="section page-article">
       <div className="contact-grid">
         <div className="contact-card">
           {c.phone && <Row label="Telefon"><a href={`tel:${c.phone.replace(/\s/g, '')}`}>{c.phone}</a></Row>}
@@ -29,6 +34,8 @@ export function Contact() {
         )}
       </div>
     </article>
+    <Branches />
+    </>
   )
 }
 

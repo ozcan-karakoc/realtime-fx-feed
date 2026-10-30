@@ -7,6 +7,7 @@ import { LiveProvider } from './useLivePrices'
 import { SiteLayout } from './site/SiteLayout'
 import { Home } from './site/Home'
 import { Markets } from './site/Markets'
+import { RateHistory } from './site/RateHistory'
 import { About } from './site/About'
 import { Contact } from './site/Contact'
 import { Login } from './admin/Login'
@@ -16,6 +17,7 @@ import { Margins } from './admin/Margins'
 import { Providers } from './admin/Providers'
 import { SiteContentPage } from './admin/SiteContent'
 import { Locks } from './admin/Locks'
+import { NoticesAdmin } from './admin/Notices'
 import { Displays } from './admin/Displays'
 import { DisplayPage } from './display/DisplayPage'
 import { SenderPage } from './display/SenderPage'
@@ -33,6 +35,7 @@ createRoot(document.getElementById('root')!).render(
         <Route element={<LiveProvider><SiteLayout /></LiveProvider>}>
           <Route index element={<Home />} />
           <Route path="canli-piyasalar" element={<Markets />} />
+          <Route path="gecmis-kurlar" element={<RateHistory />} />
           <Route path="hakkimizda" element={<About />} />
           <Route path="iletisim" element={<Contact />} />
         </Route>
@@ -44,6 +47,7 @@ createRoot(document.getElementById('root')!).render(
           <Route path="fiyat-guncelleme" element={<Margins />} />
           <Route path="saglayicilar" element={<Providers />} />
           <Route path="site-icerigi" element={<SiteContentPage />} />
+          <Route path="bildirimler" element={<NoticesAdmin />} />
           <Route path="kur-sabitleme" element={<Locks />} />
           <Route path="ekranlar" element={<Displays />} />
           <Route path="mobil-soket" element={<Clients />} />

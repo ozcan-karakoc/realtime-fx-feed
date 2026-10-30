@@ -2,17 +2,26 @@ import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { initials } from '../format'
 import { ThemeToggle } from '../theme'
+import { FullscreenMarkets } from './FullscreenMarkets'
+import { Notices } from './Notices'
+import { openFullscreenMarkets } from './Markets'
 import { useLive } from '../useLivePrices'
 import { ChatBot } from './ChatBot'
 import { FloatingSocial, SocialRow } from './FloatingSocial'
 import { Ticker } from './Ticker'
 
-const nav = [
-  { to: '/', label: 'Anasayfa', end: true },
-  { to: '/canli-piyasalar', label: 'Canlı Piyasalar' },
-  { to: '/hakkimizda', label: 'Hakkımızda' },
-  { to: '/iletisim', label: 'İletişim' },
-]
+type NavItem = { to: string; label: string; end?: boolean }
+
+/** Menü: Anasayfa · Canlı Piyasalar · Geçmiş Kurlar (panelden açılıp kapanır) · Hakkımızda · İletişim */
+function navItems(pages?: { history: boolean; historyTitle: string }): NavItem[] {
+  return [
+    { to: '/', label: 'Anasayfa', end: true },
+    { to: '/canli-piyasalar', label: 'Canlı Piyasalar' },
+    ...(pages?.history ?? true ? [{ to: '/gecmis-kurlar', label: pages?.historyTitle || 'Geçmiş Kurlar' }] : []),
+    { to: '/hakkimizda', label: 'Hakkımızda' },
+    { to: '/iletisim', label: 'İletişim' },
+  ]
+}
 
 export function SiteLayout() {
   const { content, state, message } = useLive()
@@ -20,6 +29,7 @@ export function SiteLayout() {
   const [clock, setClock] = useState(() => new Date())
   const location = useLocation()
   const shopName = content?.shopName ?? 'DEMO'
+  const nav = navItems(content?.pages)
 
   useEffect(() => {
     const t = setInterval(() => setClock(new Date()), 1000)
@@ -47,6 +57,7 @@ export function SiteLayout() {
             </>
           )}
         </Link>
+        <button className="fs-btn icon mobile-only" onClick={openFullscreenMarkets} aria-label="Canlı piyasalar tam ekran">⛶</button>
         <ThemeToggle className="mobile-only" />
         <button className="menu-btn" onClick={() => setMenu((v) => !v)} aria-label="Menü" aria-expanded={menu}>☰</button>
         <nav className={`site-nav ${menu ? 'open' : ''}`}>
@@ -59,6 +70,7 @@ export function SiteLayout() {
           <span>{status}</span>
           <span className="sep">·</span>
           <span className="mono">{clock.toLocaleTimeString('tr-TR')}</span>
+          <button className="fs-btn" onClick={openFullscreenMarkets} title="Canlı piyasa tablolarını tam ekran aç">⛶ Tam ekran</button>
           <ThemeToggle />
         </div>
       </header>
@@ -94,6 +106,8 @@ export function SiteLayout() {
           <Link to="/admin" className="foot-link inline">Yönetim</Link>
         </div>
       </footer>
+      <Notices />
+      <FullscreenMarkets />
       <FloatingSocial />
       <ChatBot />
     </div>

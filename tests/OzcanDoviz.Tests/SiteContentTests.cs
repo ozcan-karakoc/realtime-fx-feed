@@ -35,6 +35,33 @@ public class SiteContentRulesTests
 
     [Fact]
     public void Default_content_is_valid() => Assert.Empty(SiteContentRules.Validate(new SiteContent()));
+
+    [Fact]
+    public void Demo_branches_are_kapalicarsi_and_kuyumcukent_with_safe_google_urls()
+    {
+        var c = new SiteContent();
+        Assert.Equal(["Kapalıçarşı Şubesi", "Kuyumcukent Şubesi"], c.Contact.Locations.Select(l => l.Name));
+
+        var l = new BranchLocation { Name = "x", MapQuery = "Kapalıçarşı\" onload=\"alert(1)&q=evil" };
+        Assert.StartsWith("https://www.google.com/maps?q=", l.EmbedUrl());
+        Assert.DoesNotContain("\"", l.EmbedUrl());       // kullanıcı metni kaçışlanır
+        Assert.DoesNotContain("&q=evil", l.EmbedUrl());
+        Assert.StartsWith("https://www.google.com/maps/dir/?api=1&destination=", l.DirectionsUrl());
+    }
+
+    [Fact]
+    public void Branch_and_page_image_validation()
+    {
+        var c = new SiteContent();
+        c.Contact.Locations.Add(new BranchLocation { Name = "", MapQuery = "" });
+        c.Home.IntroImageUrl = "https://evil.example/x.png";
+        c.Contact.ImageUrl = "/media/../secrets.json";
+        var errors = SiteContentRules.Validate(c);
+        Assert.Contains(errors, e => e.Contains("Şube adı"));
+        Assert.Contains(errors, e => e.Contains("harita araması"));
+        Assert.Contains(errors, e => e.Contains("Anasayfa tanıtım görseli"));
+        Assert.Contains(errors, e => e.Contains("İletişim görseli"));
+    }
 }
 
 public sealed class MediaStorageTests : IDisposable

@@ -10,6 +10,7 @@ const groups = [
     links: [
       { to: '/admin', label: 'Yönetim Paneli', icon: '▦', end: true },
       { to: '/admin/kur-sabitleme', label: 'Kur Sabitlemeleri', icon: '⏱' },
+      { to: '/admin/bildirimler', label: 'Bildirim Paneli', icon: '✉' },
     ],
   },
   {

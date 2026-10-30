@@ -8,19 +8,35 @@ const groups: { title: string; categories: string[] }[] = [
   { title: 'Döviz Kurları', categories: ['doviz', 'parite', 'maden'] },
 ]
 
+/** Header'daki ve bu sayfadaki "Tam ekran" düğmesi: SiteLayout'taki tam ekran görünümünü açar. */
+export const FULLSCREEN_EVENT = 'ozcan:fullscreen-markets'
+export const openFullscreenMarkets = () => window.dispatchEvent(new Event(FULLSCREEN_EVENT))
+
 /** Canlı Piyasalar: tüm ürünler. Değişen satır kısa süre yeşil/kırmızı yanar. */
 export function Markets() {
   const { message } = useLive()
-  const items = message?.items ?? []
-  const flashes = useFlashes(items)
 
   return (
     <div className="section">
       <div className="section-head">
         <h2>Canlı Piyasalar</h2>
+        <span className="grow" />
         <span className="muted-light">Son güncelleme: {time(message?.updatedUtc)}</span>
+        <button className="fs-btn" onClick={openFullscreenMarkets}>⛶ Tam ekran</button>
       </div>
-      <div className="board-grid">
+      <MarketBoards />
+    </div>
+  )
+}
+
+/** Altın ve döviz tabloları; tam ekranda da aynı bileşen büyük yazıyla kullanılır. */
+export function MarketBoards({ big = false }: { big?: boolean }) {
+  const { message } = useLive()
+  const items = message?.items ?? []
+  const flashes = useFlashes(items)
+
+  return (
+      <div className={`board-grid ${big ? 'big' : ''}`}>
         {groups.map((g) => {
           const rows = items.filter((i) => g.categories.includes(i.category))
           return (
@@ -46,7 +62,6 @@ export function Markets() {
           )
         })}
       </div>
-    </div>
   )
 }
 

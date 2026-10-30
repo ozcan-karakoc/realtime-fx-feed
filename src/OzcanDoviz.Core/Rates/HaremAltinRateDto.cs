@@ -16,7 +16,11 @@ public sealed class HaremAltinRateDto
 
 public interface IHaremAltinService
 {
+    /// <summary>Altın geçmiş kurları (tip=1).</summary>
     Task<List<HaremAltinRateDto>> GetHistoricalRatesAsync(DateTime date, CancellationToken cancellationToken = default);
+
+    /// <summary>Belirtilen grup: <see cref="HaremHistoryType.Gold"/> (tip=1) veya <see cref="HaremHistoryType.Currency"/> (tip=0, USDTRY, EURTRY…).</summary>
+    Task<List<HaremAltinRateDto>> GetHistoricalRatesAsync(DateTime date, HaremHistoryType type, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Harem geçmiş kur ucu başarısız döndüğünde (HTTP hatası, error=true, bozuk gövde).</summary>
@@ -25,3 +29,6 @@ public sealed class HaremAltinException(string message, int? upstreamStatus = nu
 {
     public int? UpstreamStatus { get; } = upstreamStatus;
 }
+
+/// <summary>Harem geçmiş kur grupları (sorgudaki tip değeri).</summary>
+public enum HaremHistoryType { Currency = 0, Gold = 1 }

@@ -153,6 +153,35 @@ kodlama (ASCII, Windows-1254, ISO-8859-9, UTF-8), Türkçe harfleri ASCII'ye çe
 Gönderici aralıkla ve her fiyat değişiminde yazar. Web Serial/Bluetooth yalnızca https veya localhost'ta çalışır;
 sunucu internette olsa bile cihaz dükkandaki tarayıcıdan sürülür.
 
+## Geçmiş Kurlar (grafik + hesaplayıcı)
+
+Site menüsü: Anasayfa · Canlı Piyasalar · **Geçmiş Kurlar** · Hakkımızda · İletişim. Panel → Site İçeriği → **Menü ve Sayfalar**'dan
+sayfa gizlenebilir, menü adı değiştirilebilir, hesaplayıcı kapatılabilir (kapalıyken uçlar 404 döner).
+
+- Grafik: 15 sembol (altın tip=1, döviz tip=0), 1 hafta / 1 ay / 3 ay, alış ve satış çizgisi, üzerine gelince gün değeri.
+  Veri Harem Altın günlük kapanışıdır (marjsız piyasa verisi).
+- Her gün için Harem'e bir istek; geçmiş günler `App_Data/history-cache.json`'da kalıcı, bugün 10 dk önbellekte.
+  Hafta sonu tekrar eden kayıt günü bir kez sayılır.
+- Hesaplayıcı: dükkanın canlı (marjlı) fiyatıyla birim ↔ TL; seçili aralığın başında alınsaydı bugünkü değeri.
+
+```
+GET /api/v1/history/codes
+GET /api/v1/history/series?code=ALTIN&days=30
+```
+
+## Bildirim Paneli
+
+Panel → **Bildirim Paneli**: başlık, mesaj, tür (bilgi/kampanya/uyarı/önemli), bağlantı ve kimlerin göreceği.
+Gönderildiği an sitesi açık olan herkese SignalR ile düşer (panelde açık ekran sayısı görünür). Süre seçilirse o süre içinde
+siteyi açanlar da görür. Geri çekilen bildirim açık ekranlardan kalkar. Kayıtlar `App_Data/notices.json`'da.
+
+## Şubeler, haritalar ve görseller
+
+Panel → Site İçeriği → İletişim: şubeler (ad, adres, harita araması, telefon, saat). Her şube Google haritasıyla
+Anasayfa, Hakkımızda ve İletişim'de gösterilir; harita ve yol tarifi adresi sunucuda üretilir. Varsayılan demo şubeler:
+Kapalıçarşı ve Kuyumcukent. Anasayfa tanıtım, Hakkımızda ve İletişim görselleri panelden yüklenir; yüklenmezse
+`frontend/ozcan-doviz-web/public/demo` altındaki ücretsiz lisanslı fotoğraflar gösterilir (kaynaklar: `public/demo/CREDITS.md`).
+
 ## Mesaj botu ve kur sabitleme
 
 Sitenin sağ altındaki asistan: fiyat sorma, **kur sabitleme**, referans sorgulama; ürün adı yazılınca fiyat gösterir.

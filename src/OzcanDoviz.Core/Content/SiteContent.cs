@@ -19,6 +19,7 @@ public sealed class SiteContent
     /// <summary>Dosyada henüz yoksa demo tanıtım metinleriyle başlar; panelden değiştirilir.</summary>
     public HomeSection Home { get; set; } = HomeSection.Demo();
     public InstagramSection Instagram { get; set; } = new();
+    public PagesSection Pages { get; set; } = new();
 }
 
 /// <summary>Header logosu ve footer görseli (yüklenen fotoğraflardan).</summary>
@@ -54,6 +55,8 @@ public sealed class HomeSection
     public List<HomeStat> Stats { get; set; } = [];
     public string CtaTitle { get; set; } = "";
     public string CtaText { get; set; } = "";
+    /// <summary>Tanıtım bölümünün görseli (yüklenen fotoğraf). Boşsa demo görsel gösterilir.</summary>
+    public string? IntroImageUrl { get; set; }
 
     /// <summary>Firma tanıtımı için demo metinler. Yayına almadan önce gerçek bilgilerle değiştirilmeli.</summary>
     public static HomeSection Demo() => new()
@@ -145,6 +148,42 @@ public sealed class ContactSection
     public string? WorkingHours { get; set; }
     /// <summary>Yalnızca <c>https://www.google.com/maps/embed?…</c> adresi kabul edilir.</summary>
     public string? MapEmbedUrl { get; set; }
+    /// <summary>İletişim sayfasının üst görseli (yüklenen fotoğraf). Boşsa demo görsel gösterilir.</summary>
+    public string? ImageUrl { get; set; }
+    /// <summary>Şubeler; her biri haritasıyla Anasayfa, Hakkımızda ve İletişim'de gösterilir. Dosyada yoksa demo şubelerle başlar.</summary>
+    public List<BranchLocation> Locations { get; set; } = BranchLocation.Demo();
+}
+
+/// <summary>Şube. Harita adresi <see cref="MapQuery"/>'den sunucuda üretilir (Google Haritalar, anahtar gerekmez).</summary>
+public sealed class BranchLocation
+{
+    public string Name { get; set; } = "";
+    public string? Address { get; set; }
+    /// <summary>Haritada aranacak metin veya "enlem,boylam" (ör. "Kapalıçarşı, Fatih, İstanbul" ya da "41.0107,28.9680").</summary>
+    public string MapQuery { get; set; } = "";
+    public string? Phone { get; set; }
+    public string? WorkingHours { get; set; }
+
+    public string EmbedUrl() => "https://www.google.com/maps?q=" + Uri.EscapeDataString(MapQuery.Trim()) + "&z=16&output=embed";
+    public string DirectionsUrl() => "https://www.google.com/maps/dir/?api=1&destination=" + Uri.EscapeDataString(MapQuery.Trim());
+
+    public static List<BranchLocation> Demo() =>
+    [
+        new()
+        {
+            Name = "Kapalıçarşı Şubesi",
+            Address = "Kapalıçarşı, Beyazıt / Fatih / İstanbul",
+            MapQuery = "Kapalıçarşı, Fatih, İstanbul",
+            WorkingHours = "Pazartesi - Cumartesi 09:00 - 19:00",
+        },
+        new()
+        {
+            Name = "Kuyumcukent Şubesi",
+            Address = "Kuyumcukent, Yenibosna / Bahçelievler / İstanbul",
+            MapQuery = "Kuyumcukent, Bahçelievler, İstanbul",
+            WorkingHours = "Pazartesi - Cumartesi 09:00 - 18:30",
+        },
+    ];
 }
 
 public interface ISiteContentStore
@@ -173,6 +212,16 @@ public static class SiteContentRules
             if ((s.Title ?? "").Length > 120 || (s.Subtitle ?? "").Length > 240) errors.Add($"Slayt '{s.Title}': başlık çok uzun.");
         }
         if (c.About.Body.Length > 10_000) errors.Add("Hakkımızda metni en fazla 10.000 karakter olabilir.");
+        foreach (var (url, label) in new[] { (c.Home.IntroImageUrl, "Anasayfa tanıtım görseli"), (c.Contact.ImageUrl, "İletişim görseli") })
+            if (!string.IsNullOrWhiteSpace(url) && !IsMediaUrl(url)) errors.Add($"{label} geçersiz.");
+        if (c.Contact.Locations.Count > 10) errors.Add("En fazla 10 şube olabilir.");
+        foreach (var l in c.Contact.Locations)
+        {
+            if (string.IsNullOrWhiteSpace(l.Name) || l.Name.Length > 80) errors.Add("Şube adı 1-80 karakter olmalı.");
+            if (string.IsNullOrWhiteSpace(l.MapQuery) || l.MapQuery.Length > 200) errors.Add($"{l.Name}: harita araması 1-200 karakter olmalı.");
+            if ((l.Address ?? "").Length > 200 || (l.WorkingHours ?? "").Length > 120 || (l.Phone ?? "").Length > 30)
+                errors.Add($"{l.Name}: şube bilgisi çok uzun.");
+        }
         if (!string.IsNullOrWhiteSpace(c.About.ImageUrl) && !IsMediaUrl(c.About.ImageUrl))
             errors.Add("Hakkımızda fotoğrafı geçersiz.");
         if (!string.IsNullOrWhiteSpace(c.Contact.MapEmbedUrl)
@@ -192,6 +241,7 @@ public static class SiteContentRules
         if (c.Home.Stats.Count > 6) errors.Add("Anasayfada en fazla 6 sayı kutusu olabilir.");
         if ((c.Home.IntroText ?? "").Length > 2000 || (c.Home.CtaText ?? "").Length > 1000) errors.Add("Anasayfa metni çok uzun.");
         if (c.Instagram.Count is < 1 or > 24) errors.Add("Instagram gönderi sayısı 1-24 arası olmalı.");
+        if (string.IsNullOrWhiteSpace(c.Pages.HistoryTitle) || c.Pages.HistoryTitle.Length > 40) errors.Add("Geçmiş Kurlar menü adı 1-40 karakter olmalı.");
         return errors;
     }
 
@@ -257,4 +307,13 @@ public static class SiteContentRules
     /// <summary>Slayt/hakkımızda fotoğrafı yalnızca bu sitenin yüklediği dosya olabilir.</summary>
     public static bool IsMediaUrl(string? url) =>
         url is not null && url.StartsWith("/media/", StringComparison.Ordinal) && !url.Contains("..", StringComparison.Ordinal);
+}
+
+/// <summary>Sitede isteğe bağlı sayfalar; kapalıysa menüde görünmez ve uçları 404 döner.</summary>
+public sealed class PagesSection
+{
+    public bool History { get; set; } = true;
+    public string HistoryTitle { get; set; } = "Geçmiş Kurlar";
+    /// <summary>Geçmiş Kurlar sayfasının altındaki hesaplayıcı.</summary>
+    public bool Calculator { get; set; } = true;
 }

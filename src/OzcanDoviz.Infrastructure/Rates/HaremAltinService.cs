@@ -40,10 +40,13 @@ internal sealed class HaremAltinService(HttpClient httpClient, ILogger<HaremAlti
     internal const string RequestDateFormat = "dd-MM-yyyy";
     internal const string RecordDateFormat = "yyyy-MM-dd HH:mm:ss";
 
-    public async Task<List<HaremAltinRateDto>> GetHistoricalRatesAsync(DateTime date, CancellationToken cancellationToken = default)
+    public Task<List<HaremAltinRateDto>> GetHistoricalRatesAsync(DateTime date, CancellationToken cancellationToken = default) =>
+        GetHistoricalRatesAsync(date, HaremHistoryType.Gold, cancellationToken);
+
+    public async Task<List<HaremAltinRateDto>> GetHistoricalRatesAsync(DateTime date, HaremHistoryType type, CancellationToken cancellationToken = default)
     {
         var tarih = date.ToString(RequestDateFormat, CultureInfo.InvariantCulture);
-        var path = $"/ajax/gecmis_kurlar?tip=1&tarih={tarih}&interval=gun";
+        var path = $"/ajax/gecmis_kurlar?tip={(int)type}&tarih={tarih}&interval=gun";
 
         HttpResponseMessage response;
         try

@@ -14,10 +14,27 @@ public sealed class PriceHub(IPriceBoard board) : Hub
     /// <summary>Kur sabitlemesinin durumu değişti (tamamlandı / iptal); yalnızca o referansı izleyenlere gider.</summary>
     public const string LockEvent = "lock";
 
+    /// <summary>Panelden gönderilen bildirim (Bildirim Paneli).</summary>
+    public const string NoticeEvent = "notice";
+    /// <summary>Bildirim geri çekildi; açık sayfalardan kaldırılır.</summary>
+    public const string NoticeRemovedEvent = "notice-removed";
+
+    private static int _online;
+
+    /// <summary>Şu an bağlı site/ekran sayısı (bildirim panelinde gösterilir).</summary>
+    public static int OnlineCount => Volatile.Read(ref _online);
+
     public override async Task OnConnectedAsync()
     {
+        Interlocked.Increment(ref _online);
         await Clients.Caller.SendAsync(PricesEvent, PublicPrices.From(board.Current), Context.ConnectionAborted);
         await base.OnConnectedAsync();
+    }
+
+    public override Task OnDisconnectedAsync(Exception? exception)
+    {
+        Interlocked.Decrement(ref _online);
+        return base.OnDisconnectedAsync(exception);
     }
 
     /// <summary>

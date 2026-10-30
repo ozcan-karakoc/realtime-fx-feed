@@ -112,6 +112,9 @@ public sealed class SocialAndInstagramTests(ApiFactory factory) : IClassFixture<
         Assert.False(social[2]!["floating"]!.GetValue<bool>());
         Assert.Equal("https://www.instagram.com/ozcandoviz/", pub["instagram"]!["profileUrl"]!.GetValue<string>());
         Assert.NotEmpty(pub["home"]!["features"]!.AsArray()); // demo tanıtım metinleri varsayılan
+        var locations = pub["locations"]!.AsArray();
+        Assert.Equal(2, locations.Count); // Kapalıçarşı ve Kuyumcukent demo şubeleri
+        Assert.StartsWith("https://www.google.com/maps?q=", locations[0]!["embedUrl"]!.GetValue<string>());
 
         content["social"] = new JsonArray(new JsonObject { ["type"] = "Instagram", ["value"] = "javascript:alert(1)", ["floating"] = true });
         Assert.Equal(HttpStatusCode.BadRequest, (await admin.PutAsJsonAsync("/api/v1/admin/content", content)).StatusCode);

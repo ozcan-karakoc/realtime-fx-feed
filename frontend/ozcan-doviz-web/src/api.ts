@@ -127,6 +127,8 @@ export interface ContactSection {
   address?: string | null
   workingHours?: string | null
   mapEmbedUrl?: string | null
+  imageUrl?: string | null
+  locations: BranchLocation[]
 }
 
 export interface PublicContent {
@@ -141,6 +143,8 @@ export interface PublicContent {
   social: { type: SocialType; href: string; label: string; floating: boolean }[]
   home: HomeSection
   instagram: InstagramSection & { profileUrl?: string | null }
+  locations: PublicLocation[]
+  pages: PagesSection
 }
 
 export interface Slide {
@@ -164,6 +168,7 @@ export interface SiteContent {
   social: SocialLink[]
   home: HomeSection
   instagram: InstagramSection
+  pages: PagesSection
 }
 
 export interface MediaFile {
@@ -287,6 +292,7 @@ export interface HomeSection {
   stats: { value: string; label: string }[]
   ctaTitle: string
   ctaText: string
+  introImageUrl?: string | null
 }
 
 export interface InstagramSection {
@@ -377,3 +383,46 @@ export interface CustomProvider {
 }
 
 export interface CustomProviderTest { ok: boolean; message: string; sample?: string | null; symbols: string[] }
+
+export interface BranchLocation {
+  name: string
+  address?: string | null
+  mapQuery: string
+  phone?: string | null
+  workingHours?: string | null
+}
+
+export interface PublicLocation {
+  name: string
+  address?: string | null
+  phone?: string | null
+  workingHours?: string | null
+  embedUrl: string
+  directionsUrl: string
+}
+
+export interface PagesSection {
+  history: boolean
+  historyTitle: string
+  calculator: boolean
+}
+
+export interface HistoryCode { code: string; name: string; group: 'altin' | 'doviz'; decimals: number }
+export interface HistoryPoint { date: string; buy: number; sell: number }
+export interface HistorySeries { code: string; name: string; decimals: number; points: HistoryPoint[]; missingDays: number }
+
+export interface PublicNotice {
+  id: string
+  title: string
+  message: string
+  level: 'info' | 'success' | 'warning' | 'danger'
+  linkUrl?: string | null
+  linkText?: string | null
+  createdUtc: string
+}
+
+export interface SiteNotice extends PublicNotice {
+  displayMinutes: number
+  createdBy?: string | null
+  withdrawnUtc?: string | null
+}

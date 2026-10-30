@@ -42,6 +42,8 @@ public static class DependencyInjection
         // Site içeriği (kayan yazı, slaytlar, hakkımızda, iletişim) ve fotoğraflar: yerel dosya.
         services.AddSingleton<ISiteContentStore, SiteContentStore>();
         services.AddSingleton<IDisplayStore, DisplayStore>();
+        services.AddSingleton<IRateHistoryService, RateHistoryService>();
+        services.AddSingleton<ISiteNoticeStore, SiteNoticeStore>();
         services.Configure<MediaOptions>(configuration.GetSection("Media"));
         services.AddSingleton<MediaStorage>();
         services.AddSingleton<IMediaStorage>(sp => sp.GetRequiredService<MediaStorage>());

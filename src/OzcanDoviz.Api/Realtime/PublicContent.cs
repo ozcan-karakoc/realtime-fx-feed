@@ -9,6 +9,8 @@ public sealed record PublicBranding(string? HeaderLogoUrl, string? FooterImageUr
 /// <summary>Bağlantı adresi sunucuda üretilir; istemci kullanıcı girdisini href olarak kullanmaz.</summary>
 public sealed record PublicSocial(SocialType Type, string Href, string Label, bool Floating);
 public sealed record PublicInstagram(bool Enabled, string Title, int Count, string? ProfileUrl);
+/// <summary>Şube: harita ve yol tarifi adresleri sunucuda üretilir (kullanıcı girdisi doğrudan iframe adresi olmaz).</summary>
+public sealed record PublicLocation(string Name, string? Address, string? Phone, string? WorkingHours, string EmbedUrl, string DirectionsUrl);
 
 /// <summary>Sitenin ve mobilin okuduğu içerik. Kaydeden kullanıcı adı, anahtarlar gibi iç alanlar yoktur.</summary>
 public sealed record PublicContentMessage(
@@ -22,7 +24,9 @@ public sealed record PublicContentMessage(
     PublicBranding Branding,
     IReadOnlyList<PublicSocial> Social,
     HomeSection Home,
-    PublicInstagram Instagram);
+    PublicInstagram Instagram,
+    IReadOnlyList<PublicLocation> Locations,
+    PagesSection Pages);
 
 public static class PublicContent
 {
@@ -54,7 +58,12 @@ public static class PublicContent
             new PublicBranding(Abs(c.Branding.HeaderLogoUrl), Abs(c.Branding.FooterImageUrl)),
             social,
             c.Home,
-            new PublicInstagram(c.Instagram.Enabled, c.Instagram.Title, c.Instagram.Count, instagramProfile));
+            new PublicInstagram(c.Instagram.Enabled, c.Instagram.Title, c.Instagram.Count, instagramProfile),
+            c.Contact.Locations
+                .Where(l => !string.IsNullOrWhiteSpace(l.MapQuery))
+                .Select(l => new PublicLocation(l.Name, l.Address, l.Phone, l.WorkingHours, l.EmbedUrl(), l.DirectionsUrl()))
+                .ToList(),
+            c.Pages);
     }
 
     private static string Label(SocialLink s) => s.Type switch

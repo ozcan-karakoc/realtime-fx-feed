@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import type { InstagramPost } from '../api'
 import { money } from '../format'
 import { useLive } from '../useLivePrices'
+import { Branches } from './Branches'
 import { SocialIcon } from './SocialIcon'
 
 const highlightCodes = ['USD', 'EUR', 'GBP', 'HAS', 'GRAM', 'CEYREK_YENI']
@@ -46,6 +47,8 @@ export function Home() {
             {home.introTitle && <h2>{home.introTitle}</h2>}
             {home.introText && <p>{home.introText}</p>}
             <Link to="/hakkimizda" className="more">Bizi tanıyın →</Link>
+            {/* Panelden fotoğraf yüklenmediyse demo görsel. */}
+            <img src={home.introImageUrl || '/demo/intro.jpg'} alt="" className="intro-img" loading="lazy" />
           </div>
           {home.features.length > 0 && (
             <div className="feature-grid">
@@ -71,6 +74,8 @@ export function Home() {
           ))}
         </section>
       )}
+
+      <Branches compact />
 
       {home && (home.ctaTitle || home.ctaText) && (
         <section className="section">

@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react'
 import {
   api, ApiError, json,
-  type Branding, type HomeSection, type InstagramPost, type InstagramSection, type InstagramStatus,
+  type Branding, type BranchLocation, type HomeSection, type InstagramPost, type InstagramSection, type InstagramStatus,
   type MediaFile, type SiteContent, type Slide, type SocialLink, type SocialType,
 } from '../api'
 import { SocialIcon } from '../site/SocialIcon'
 import { dateTime } from '../format'
 
-type Tab = 'home' | 'ticker' | 'slides' | 'branding' | 'social' | 'instagram' | 'about' | 'contact' | 'mobile'
+type Tab = 'pages' | 'home' | 'ticker' | 'slides' | 'branding' | 'social' | 'instagram' | 'about' | 'contact' | 'mobile'
 
 const tabs: { key: Tab; label: string }[] = [
+  { key: 'pages', label: 'Menü ve Sayfalar' },
   { key: 'home', label: 'Anasayfa' },
   { key: 'ticker', label: 'Kayan Yazı' },
   { key: 'slides', label: 'Slaytlar' },
@@ -28,7 +29,7 @@ const tabs: { key: Tab; label: string }[] = [
 export function SiteContentPage() {
   const [content, setContent] = useState<SiteContent | null>(null)
   const [media, setMedia] = useState<MediaFile[]>([])
-  const [tab, setTab] = useState<Tab>('home')
+  const [tab, setTab] = useState<Tab>('pages')
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ ok: boolean; text: string; details?: string[] } | null>(null)
@@ -85,14 +86,15 @@ export function SiteContentPage() {
         )}
 
         <div className="pad">
-          {tab === 'home' && <HomeTab content={content} patch={patch} />}
+          {tab === 'pages' && <PagesTab content={content} patch={patch} />}
+          {tab === 'home' && <HomeTab content={content} patch={patch} media={media} reloadMedia={loadMedia} />}
           {tab === 'branding' && <BrandingTab content={content} patch={patch} media={media} reloadMedia={loadMedia} />}
           {tab === 'social' && <SocialTab content={content} patch={patch} />}
           {tab === 'instagram' && <InstagramTab content={content} patch={patch} />}
           {tab === 'ticker' && <TickerTab content={content} patch={patch} />}
           {tab === 'slides' && <SlidesTab content={content} patch={patch} media={media} reloadMedia={loadMedia} />}
           {tab === 'about' && <AboutTab content={content} patch={patch} media={media} reloadMedia={loadMedia} />}
-          {tab === 'contact' && <ContactTab content={content} patch={patch} />}
+          {tab === 'contact' && <ContactTab content={content} patch={patch} media={media} reloadMedia={loadMedia} />}
           {tab === 'mobile' && <MobileTab content={content} patch={patch} />}
         </div>
       </section>
@@ -105,7 +107,32 @@ interface TabProps {
   patch: (p: Partial<SiteContent>) => void
 }
 
-function HomeTab({ content, patch }: TabProps) {
+function PagesTab({ content, patch }: TabProps) {
+  const p = content.pages
+  const set = (x: Partial<SiteContent['pages']>) => patch({ pages: { ...p, ...x } })
+  return (
+    <div>
+      <p className="muted">Site menüsü: Anasayfa · Canlı Piyasalar · <b>{p.history ? p.historyTitle || 'Geçmiş Kurlar' : '(gizli)'}</b> · Hakkımızda · İletişim</p>
+      <div className="page-toggle">
+        <label className="switch"><input type="checkbox" checked={p.history} onChange={(e) => set({ history: e.target.checked })} /><span /></label>
+        <div className="grow">
+          <strong>Geçmiş Kurlar sayfası</strong>
+          <div className="muted small">Açıksa menüde görünür: grafikli geçmiş kurlar (1 hafta / 1 ay / 3 ay). Kapalıysa menüden kalkar ve sayfa açılmaz.</div>
+        </div>
+        <label className="field"><span>Menü adı</span><input value={p.historyTitle} maxLength={40} disabled={!p.history} onChange={(e) => set({ historyTitle: e.target.value })} /></label>
+      </div>
+      <div className="page-toggle">
+        <label className="switch"><input type="checkbox" checked={p.calculator} disabled={!p.history} onChange={(e) => set({ calculator: e.target.checked })} /><span /></label>
+        <div className="grow">
+          <strong>Hesaplayıcı</strong>
+          <div className="muted small">Geçmiş Kurlar sayfasının altında: güncel fiyatımızla birim ↔ TL ve seçili aralıkta getiri hesabı.</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function HomeTab({ content, patch, media, reloadMedia }: TabProps & { media: MediaFile[]; reloadMedia: () => Promise<void> }) {
   const h = content.home
   const set = (p: Partial<HomeSection>) => patch({ home: { ...h, ...p } })
   return (
@@ -113,6 +140,14 @@ function HomeTab({ content, patch }: TabProps) {
       <DemoBar onFill={() => set(demoHome)} />
       <label className="field"><span>Tanıtım başlığı</span><input value={h.introTitle} maxLength={120} onChange={(e) => set({ introTitle: e.target.value })} /></label>
       <label className="field"><span>Tanıtım metni</span><textarea rows={4} maxLength={2000} value={h.introText} onChange={(e) => set({ introText: e.target.value })} /></label>
+      <div className="field">
+        <span>Tanıtım görseli (boşsa demo görsel)</span>
+        <div className="row-actions wrap">
+          <div className="logo-preview"><img src={h.introImageUrl || '/demo/intro.jpg'} alt="" /></div>
+          <MediaPicker media={media} value={h.introImageUrl ?? ''} allowEmpty onChange={(url) => set({ introImageUrl: url || null })} />
+          <Uploader label="Yeni görsel yükle" onUploaded={async (f) => { await reloadMedia(); set({ introImageUrl: f.url }) }} />
+        </div>
+      </div>
 
       <h3 className="sub-title">Özellik kartları (en fazla 8)</h3>
       <div className="list-edit">
@@ -382,10 +417,14 @@ function AboutTab({ content, patch, media, reloadMedia }: TabProps & { media: Me
   )
 }
 
-function ContactTab({ content, patch }: TabProps) {
+type ContactText = Exclude<keyof SiteContent['contact'], 'locations'>
+
+function ContactTab({ content, patch, media, reloadMedia }: TabProps & { media: MediaFile[]; reloadMedia: () => Promise<void> }) {
   const c = content.contact
   const set = (p: Partial<SiteContent['contact']>) => patch({ contact: { ...c, ...p } })
-  const field = (key: keyof SiteContent['contact'], label: string, placeholder?: string) => (
+  const locations = c.locations ?? []
+  const setLoc = (i: number, p: Partial<BranchLocation>) => set({ locations: locations.map((l, j) => (j === i ? { ...l, ...p } : l)) })
+  const field = (key: ContactText, label: string, placeholder?: string) => (
     <label className="field">
       <span>{label}</span>
       <input value={c[key] ?? ''} placeholder={placeholder} onChange={(e) => set({ [key]: e.target.value || null })} />
@@ -401,11 +440,60 @@ function ContactTab({ content, patch }: TabProps) {
       </div>
       {field('address', 'Adres')}
       {field('workingHours', 'Çalışma saatleri')}
+
+      <h3 className="sub-title">Sayfa görseli</h3>
+      <div className="row-actions wrap">
+        <div className="logo-preview wide"><img src={c.imageUrl || '/demo/contact.jpg'} alt="" /></div>
+        <MediaPicker media={media} value={c.imageUrl ?? ''} allowEmpty onChange={(url) => set({ imageUrl: url || null })} />
+        <Uploader label="Yeni görsel yükle" onUploaded={async (f) => { await reloadMedia(); set({ imageUrl: f.url }) }} />
+      </div>
+      <p className="muted small">Boş bırakılırsa demo görsel gösterilir. Önerilen boyut 1600×400.</p>
+
+      <h3 className="sub-title">Şubeler ve haritalar ({locations.length}/10)</h3>
+      <p className="muted small">
+        Her şube haritasıyla Anasayfa, Hakkımızda ve İletişim'de gösterilir. "Harita araması" Google Haritalar'da aranacak metindir
+        (ör. "Kapalıçarşı, Fatih, İstanbul") ya da "41.0107,28.9680" gibi koordinattır.
+      </p>
+      <div className="list-edit">
+        {locations.map((l, i) => (
+          <div key={i} className="branch-edit">
+            <div className="form-row">
+              <label className="field"><span>Şube adı</span><input value={l.name} maxLength={80} onChange={(e) => setLoc(i, { name: e.target.value })} /></label>
+              <label className="field grow2"><span>Harita araması</span><input value={l.mapQuery} maxLength={200} onChange={(e) => setLoc(i, { mapQuery: e.target.value })} /></label>
+            </div>
+            <div className="form-row">
+              <label className="field grow2"><span>Adres</span><input value={l.address ?? ''} maxLength={200} onChange={(e) => setLoc(i, { address: e.target.value || null })} /></label>
+              <label className="field"><span>Telefon</span><input value={l.phone ?? ''} maxLength={30} onChange={(e) => setLoc(i, { phone: e.target.value || null })} /></label>
+              <label className="field"><span>Çalışma saatleri</span><input value={l.workingHours ?? ''} maxLength={120} onChange={(e) => setLoc(i, { workingHours: e.target.value || null })} /></label>
+            </div>
+            <div className="row-actions wrap">
+              {l.mapQuery.trim() && (
+                <a className="btn small" href={`https://www.google.com/maps?q=${encodeURIComponent(l.mapQuery.trim())}`} target="_blank" rel="noopener noreferrer">Haritada kontrol et ↗</a>
+              )}
+              <span className="grow" />
+              <button className="icon-btn small" disabled={i === 0} onClick={() => set({ locations: swap(locations, i, i - 1) })} title="Yukarı">↑</button>
+              <button className="icon-btn small" disabled={i === locations.length - 1} onClick={() => set({ locations: swap(locations, i, i + 1) })} title="Aşağı">↓</button>
+              <button className="btn small danger" onClick={() => set({ locations: locations.filter((_, j) => j !== i) })}>Şubeyi sil</button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="row-actions wrap">
+        <button className="btn" disabled={locations.length >= 10} onClick={() => set({ locations: [...locations, { name: 'Yeni şube', mapQuery: '' }] })}>+ Şube ekle</button>
+        <button className="btn" onClick={() => { if (confirm('Kapalıçarşı ve Kuyumcukent demo şubeleri eklensin mi?')) set({ locations: [...locations, ...demoLocations].slice(0, 10) }) }}>Demo şubeleri ekle</button>
+      </div>
+
+      <h3 className="sub-title">Tek harita (eski alan, isteğe bağlı)</h3>
       {field('mapEmbedUrl', 'Google Haritalar yerleştirme adresi', 'https://www.google.com/maps/embed?pb=…')}
-      <p className="muted small">Google Haritalar → Paylaş → Haritayı yerleştir → HTML'deki src="…" adresini yapıştırın.</p>
+      <p className="muted small">Google Haritalar → Paylaş → Haritayı yerleştir → HTML'deki src="…" adresini yapıştırın. Şube haritaları için gerekmez.</p>
     </div>
   )
 }
+
+const demoLocations: BranchLocation[] = [
+  { name: 'Kapalıçarşı Şubesi', address: 'Kapalıçarşı, Beyazıt / Fatih / İstanbul', mapQuery: 'Kapalıçarşı, Fatih, İstanbul', workingHours: 'Pazartesi - Cumartesi 09:00 - 19:00' },
+  { name: 'Kuyumcukent Şubesi', address: 'Kuyumcukent, Yenibosna / Bahçelievler / İstanbul', mapQuery: 'Kuyumcukent, Bahçelievler, İstanbul', workingHours: 'Pazartesi - Cumartesi 09:00 - 18:30' },
+]
 
 function MobileTab({ content, patch }: TabProps) {
   const origin = window.location.origin
@@ -478,7 +566,7 @@ function MediaPicker({ media, value, onChange, allowEmpty }: { media: MediaFile[
 
 function MediaLibrary({ media, content, reload }: { media: MediaFile[]; content: SiteContent; reload: () => Promise<void> }) {
   const [error, setError] = useState<string | null>(null)
-  const used = new Set([...content.slides.map((s) => s.imageUrl), content.about.imageUrl ?? '', content.branding.headerLogoUrl ?? '', content.branding.footerImageUrl ?? ''])
+  const used = new Set([...content.slides.map((s) => s.imageUrl), content.about.imageUrl ?? '', content.branding.headerLogoUrl ?? '', content.branding.footerImageUrl ?? '', content.home.introImageUrl ?? '', content.contact.imageUrl ?? ''])
   if (media.length === 0) return null
   return (
     <details className="library">
@@ -535,7 +623,7 @@ const demoAbout = {
   ].join('\n\n'),
 }
 
-const demoContact: SiteContent['contact'] = {
+const demoContact: Omit<SiteContent['contact'], 'locations'> = {
   phone: '0 (212) 000 00 00',
   whatsApp: '90 500 000 00 00',
   email: 'info@ornek.com',

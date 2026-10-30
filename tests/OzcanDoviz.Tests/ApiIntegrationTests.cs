@@ -23,6 +23,7 @@ public class ApiFactory : WebApplicationFactory<Program>
     public string DataDir { get; } = Path.Combine(Path.GetTempPath(), "ozcan-it-" + Guid.NewGuid().ToString("N"));
 
     public FakeGraph Graph { get; } = new();
+    public FakeHaremHistory Harem { get; } = new();
 
     /// <summary>Kur sabitleme istek sınırı; sınır testi dışında testler takılmasın diye yüksek.</summary>
     protected virtual int LockLimit => 1000;
@@ -40,6 +41,9 @@ public class ApiFactory : WebApplicationFactory<Program>
             // Instagram Graph API yerine sahte cevaplar: dış ağa çıkılmaz.
             services.AddHttpClient(nameof(OzcanDoviz.Infrastructure.Social.InstagramFeed))
                 .ConfigurePrimaryHttpMessageHandler(() => Graph);
+            // Harem geçmiş kurları yerine sahte günlük cevaplar.
+            services.AddHttpClient(nameof(OzcanDoviz.Core.Rates.IHaremAltinService))
+                .ConfigurePrimaryHttpMessageHandler(() => Harem);
             var worker = services.Single(d => d.ServiceType == typeof(IHostedService) && d.ImplementationType == typeof(PriceWorker));
             services.Remove(worker);
         });

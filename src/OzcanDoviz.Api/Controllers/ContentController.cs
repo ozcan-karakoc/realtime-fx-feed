@@ -90,12 +90,14 @@ public sealed class AdminContentController(
         request.Slides ??= [];
         request.About ??= new AboutSection();
         request.Contact ??= new ContactSection();
+        request.Contact.Locations ??= [];
         request.Branding ??= new BrandingSection();
         request.Social ??= [];
         request.Home ??= new HomeSection();
         request.Home.Features ??= [];
         request.Home.Stats ??= [];
         request.Instagram ??= new InstagramSection();
+        request.Pages ??= new PagesSection();
 
         var errors = SiteContentRules.Validate(request);
         if (errors.Count > 0)
@@ -147,7 +149,8 @@ public sealed class AdminContentController(
         var current = await content.GetAsync(ct);
         var url = "/media/" + name;
         if (current.Slides.Any(s => s.ImageUrl == url) || current.About.ImageUrl == url
-            || current.Branding.HeaderLogoUrl == url || current.Branding.FooterImageUrl == url)
+            || current.Branding.HeaderLogoUrl == url || current.Branding.FooterImageUrl == url
+            || current.Home.IntroImageUrl == url || current.Contact.ImageUrl == url)
             return Conflict(new ProblemDetails { Title = "Bu fotoğraf kullanılıyor; önce slayt, Hakkımızda veya logo alanından kaldırın." });
         if (!media.Delete(name)) return NotFound();
         db.AuditEntries.Add(new AuditEntry { User = User.Identity?.Name ?? "", Action = "media.delete", Detail = name });

@@ -6,6 +6,7 @@ export function Users() {
   const [users, setUsers] = useState<UserView[]>([])
   const [userName, setUserName] = useState('')
   const [password, setPassword] = useState('')
+  const [role, setRole] = useState('Admin')
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
@@ -27,7 +28,7 @@ export function Users() {
   function create(e: FormEvent) {
     e.preventDefault()
     void run(async () => {
-      await api('/api/v1/admin/users', { method: 'POST', body: json({ userName, password }) })
+      await api('/api/v1/admin/users', { method: 'POST', body: json({ userName, password, role }) })
       setUserName('')
       setPassword('')
     }, 'Kullanıcı eklendi.')
@@ -56,13 +57,14 @@ export function Users() {
         <div className="form-title">Kullanıcı Yönetimi</div>
         <div className="table-wrap">
           <table className="data-table">
-            <thead><tr><th>Kullanıcı</th><th>Rol</th><th>Durum</th><th>Son giriş</th><th /></tr></thead>
+            <thead><tr><th>Kullanıcı</th><th>Rol</th><th>Durum</th><th>Oluşturma</th><th>Son giriş</th><th /></tr></thead>
             <tbody>
               {users.map((u) => (
                 <tr key={u.id}>
                   <td><strong>{u.userName}</strong>{u.userName === auth.user && <span className="muted"> (siz)</span>}</td>
-                  <td>{u.role}</td>
+                  <td>{u.role === 'Demo' ? 'Demo (salt okunur)' : 'Yönetici'}</td>
                   <td><span className={`badge ${u.isActive ? 'ok' : ''}`}>{u.isActive ? 'Aktif' : 'Pasif'}</span></td>
+                  <td>{dateTime(u.createdUtc)}</td>
                   <td>{dateTime(u.lastLoginUtc)}</td>
                   <td className="actions">
                     <button className="btn small" onClick={() => reset(u)}>Şifre sıfırla</button>
@@ -79,10 +81,16 @@ export function Users() {
 
       <div className="two-col">
         <section className="panel form-panel">
-          <div className="form-title">Yeni Yönetici</div>
+          <div className="form-title">Yeni Kullanıcı</div>
           <form className="pad" onSubmit={create}>
             <label className="field"><span>Kullanıcı adı</span><input value={userName} onChange={(e) => setUserName(e.target.value)} required /></label>
             <label className="field"><span>Şifre (en az 8)</span><input type="password" minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="new-password" /></label>
+            <label className="field"><span>Rol</span>
+              <select value={role} onChange={(e) => setRole(e.target.value)}>
+                <option value="Admin">Yönetici: tüm yetkiler</option>
+                <option value="Demo">Demo: müşteriye gönderilir, yalnızca gezer</option>
+              </select>
+            </label>
             <button className="btn primary">Ekle</button>
           </form>
         </section>

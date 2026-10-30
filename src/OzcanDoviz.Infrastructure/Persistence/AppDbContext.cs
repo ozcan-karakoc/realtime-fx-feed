@@ -2,12 +2,21 @@ using Microsoft.EntityFrameworkCore;
 
 namespace OzcanDoviz.Infrastructure.Persistence;
 
+public static class AdminRoles
+{
+    public const string Admin = "Admin";
+    /// <summary>Müşterilere verilen tanıtım hesabı: paneli gezer, hiçbir şey değiştiremez.</summary>
+    public const string Demo = "Demo";
+
+    public static bool IsValid(string? role) => role is Admin or Demo;
+}
+
 public sealed class AdminUser
 {
     public int Id { get; set; }
     public string UserName { get; set; } = "";
     public string PasswordHash { get; set; } = "";
-    public string Role { get; set; } = "Admin";
+    public string Role { get; set; } = AdminRoles.Admin;
     public bool IsActive { get; set; } = true;
     public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
     public DateTime? LastLoginUtc { get; set; }

@@ -45,6 +45,15 @@ Seçenekler: `-NoDemoData` (boş kurulum), `-Update` (güncelleme; sunucudaki ve
 `https://www.vitevitrin.com/admin` → kullanıcı `admin`, şifre `publish\ILK-GIRIS.txt` içinde.
 Girişten sonra **Kullanıcılar → Şifremi değiştir** ile değiştirin ve `ILK-GIRIS.txt` dosyasını silin.
 
+## Demo hesabı (müşterilere gönderilir)
+
+Rol **Demo**: paneli gezer, hiçbir şey kaydedemez; Kullanıcı Yönetimi ve İşlem İzi'ni görmez, müşteri ad ve telefonları maskelidir.
+
+- Yeni kurulum: paketle otomatik açılır (`demo`). Şifre `publish\DEMO-HESAP.txt` dosyasındadır, paketler arasında değişmez.
+- Çalışan site: yönetici hesabıyla **Kullanıcı Yönetimi → Yeni Kullanıcı** → kullanıcı `demo`, şifre `DEMO-HESAP.txt` içindeki, rol **Demo**.
+- Kapatmak için: Kullanıcı Yönetimi → **Pasif yap**.
+- `publish\tanitim` içindeki broşürlerde bu şifre yazar; o klasörü herkese açık depoya koymayın.
+
 ## 5. Güncelleme
 
 ```powershell

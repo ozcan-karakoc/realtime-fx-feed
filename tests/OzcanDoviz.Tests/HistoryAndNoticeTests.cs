@@ -147,3 +147,45 @@ public sealed class HistoryAndNoticeTests(ApiFactory factory) : IClassFixture<Ap
         Assert.Equal(HttpStatusCode.BadRequest, (await admin.PostAsJsonAsync("/api/v1/admin/notices", new { title = "", level = "info" })).StatusCode);
     }
 }
+
+public sealed class DemoAccountTests(ApiFactory factory) : IClassFixture<ApiFactory>
+{
+    private async Task<HttpClient> LoginAsync(string user, string password)
+    {
+        var client = factory.CreateClient();
+        var login = await client.PostAsJsonAsync("/api/v1/auth/login", new { userName = user, password });
+        login.EnsureSuccessStatusCode();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", (await login.Content.ReadFromJsonAsync<JsonObject>())!["token"]!.GetValue<string>());
+        return client;
+    }
+
+    [Fact]
+    public async Task Demo_account_can_browse_but_not_change_or_see_users()
+    {
+        var admin = await LoginAsync("admin", "admin1234");
+        Assert.Equal(HttpStatusCode.OK, (await admin.PostAsJsonAsync("/api/v1/admin/users", new { userName = "demo", password = "demo-sifre-1", role = "Demo" })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await admin.PostAsJsonAsync("/api/v1/admin/users", new { userName = "x", password = "demo-sifre-1", role = "Patron" })).StatusCode);
+
+        var demo = await LoginAsync("demo", "demo-sifre-1");
+        Assert.Equal(HttpStatusCode.OK, (await demo.GetAsync("/api/v1/admin/margins")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await demo.GetAsync("/api/v1/admin/content")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await demo.GetAsync("/api/v1/admin/users")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await demo.GetAsync("/api/v1/admin/audit")).StatusCode);
+
+        var margins = await demo.GetFromJsonAsync<JsonObject>("/api/v1/admin/margins");
+        Assert.Equal(HttpStatusCode.Forbidden, (await demo.PutAsJsonAsync("/api/v1/admin/margins", margins)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await demo.PostAsJsonAsync("/api/v1/admin/notices", new { title = "x", level = "info" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await demo.PostAsJsonAsync("/api/v1/auth/change-password", new { currentPassword = "demo-sifre-1", newPassword = "baska-sifre-1" })).StatusCode);
+
+        Assert.Contains("\"Demo\"", await admin.GetStringAsync("/api/v1/admin/users"));
+    }
+
+    [Fact]
+    public void Customer_details_are_masked_for_demo()
+    {
+        var masked = OzcanDoviz.Api.Auth.DemoGuard.Mask(new OzcanDoviz.Core.Locks.RateLock { Ref = "R", CustomerName = "Ayşe Demir", CustomerPhone = "05321234567", Note = "n" });
+        Assert.Equal("A*** D***", masked.CustomerName);
+        Assert.Equal("*********67", masked.CustomerPhone);
+        Assert.Null(masked.Note);
+    }
+}

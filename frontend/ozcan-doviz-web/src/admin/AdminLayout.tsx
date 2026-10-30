@@ -4,7 +4,9 @@ import { auth } from '../api'
 import { initials } from '../format'
 import { ThemeToggle } from '../theme'
 
-const groups = [
+type SideLink = { to: string; label: string; icon: string; end?: boolean; adminOnly?: boolean }
+
+const groups: { title: string; links: SideLink[] }[] = [
   {
     title: 'Genel',
     links: [
@@ -32,8 +34,8 @@ const groups = [
   {
     title: 'Sistem',
     links: [
-      { to: '/admin/kullanicilar', label: 'Kullanıcı Yönetimi', icon: '☺' },
-      { to: '/admin/islem-izi', label: 'İşlem İzi', icon: '☰' },
+      { to: '/admin/kullanicilar', label: 'Kullanıcı Yönetimi', icon: '☺', adminOnly: true },
+      { to: '/admin/islem-izi', label: 'İşlem İzi', icon: '☰', adminOnly: true },
     ],
   },
 ]
@@ -55,6 +57,12 @@ export function AdminLayout() {
   }, [location.pathname])
   if (!auth.token) return <Navigate to="/admin/login" replace />
 
+  const demo = auth.isDemo
+  const visibleGroups = groups
+    .map((g) => ({ ...g, links: g.links.filter((l) => !demo || !l.adminOnly) }))
+    .filter((g) => g.links.length > 0)
+  if (demo && allLinks.some((l) => l.adminOnly && location.pathname.startsWith(l.to))) return <Navigate to="/admin" replace />
+
   const current = allLinks.find((l) => (l.end ? location.pathname === l.to : location.pathname.startsWith(l.to)))
 
   function logout() {
@@ -72,7 +80,7 @@ export function AdminLayout() {
             <small>Yönetim</small>
           </span>
         </Link>
-        {groups.map((g) => (
+        {visibleGroups.map((g) => (
           <div key={g.title} className="side-group">
             <div className="side-group-title">{g.title}</div>
             {g.links.map((l) => (
@@ -99,6 +107,7 @@ export function AdminLayout() {
       </header>
 
       <main className="admin-main">
+        {demo && <div className="demo-banner"><strong>Demo hesabı</strong> Tüm ekranları gezebilirsiniz; değişiklikler kaydedilmez.</div>}
         <Outlet />
       </main>
       <footer className="admin-foot">© {new Date().getFullYear()} {shopName} · Yönetim Paneli</footer>

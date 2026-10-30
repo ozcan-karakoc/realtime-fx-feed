@@ -1,3 +1,4 @@
+using OzcanDoviz.Api.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -83,7 +84,7 @@ public sealed class AdminLocksController(IRateLockStore store, IFeedSettingsStor
     public async Task<IEnumerable<AdminLock>> List([FromQuery] int take = 200, CancellationToken ct = default)
     {
         var now = DateTime.UtcNow;
-        return (await store.ListAsync(Math.Clamp(take, 1, 2000), ct)).Select(l => new AdminLock(l, l.StatusAt(now)));
+        return (await store.ListAsync(Math.Clamp(take, 1, 2000), ct)).Select(l => new AdminLock(User.IsInRole(AdminRoles.Demo) ? DemoGuard.Mask(l) : l, l.StatusAt(now)));
     }
 
     [HttpPost("{reference}/complete")]

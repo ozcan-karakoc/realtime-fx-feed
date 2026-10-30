@@ -21,7 +21,9 @@ public static class DatabaseInitializer
 
         await db.Database.EnsureCreatedAsync(ct);
 
-        if (await db.AdminUsers.AnyAsync(ct)) return;
+        await SeedDemoAsync(db, config, logger, ct);
+
+        if (await db.AdminUsers.AnyAsync(u => u.Role == AdminRoles.Admin, ct)) return;
 
         var userName = config["Admin:UserName"];
         var password = config["Admin:Password"];
@@ -36,5 +38,20 @@ public static class DatabaseInitializer
         db.AdminUsers.Add(user);
         await db.SaveChangesAsync(ct);
         logger.LogInformation("İlk yönetici oluşturuldu: {User}. Şifreyi panelden değiştirin.", user.UserName);
+    }
+
+    /// <summary><c>Demo:UserName</c> / <c>Demo:Password</c> tanımlıysa ve hesap yoksa salt okunur tanıtım hesabını açar.</summary>
+    private static async Task SeedDemoAsync(AppDbContext db, IConfiguration config, ILogger logger, CancellationToken ct)
+    {
+        var userName = config["Demo:UserName"]?.Trim();
+        var password = config["Demo:Password"];
+        if (string.IsNullOrWhiteSpace(userName) || string.IsNullOrWhiteSpace(password)) return;
+        if (await db.AdminUsers.AnyAsync(u => u.UserName == userName, ct)) return;
+
+        var user = new AdminUser { UserName = userName, Role = AdminRoles.Demo };
+        user.PasswordHash = new PasswordHasher<AdminUser>().HashPassword(user, password);
+        db.AdminUsers.Add(user);
+        await db.SaveChangesAsync(ct);
+        logger.LogInformation("Demo hesabı oluşturuldu: {User}.", user.UserName);
     }
 }

@@ -24,7 +24,9 @@ public sealed class AdminCustomProvidersController(
     AppDbContext db) : ControllerBase
 {
     [HttpGet]
-    public IReadOnlyList<CustomProviderDefinition> List() => service.List();
+    public IReadOnlyList<CustomProviderDefinition> List() =>
+        // Adreslerde anahtar olabilir: demo hesabı görmez.
+        User.IsInRole(AdminRoles.Demo) ? [] : service.List();
 
     /// <summary>Kaydetmeden dener: bağlanır, ilk fiyatlı mesajı bekler (en fazla 10 sn), örnek mesajı ve sembolleri döner.</summary>
     [HttpPost("test")]

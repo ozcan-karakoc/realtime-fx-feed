@@ -188,6 +188,15 @@ export const auth = {
   get user() {
     try { return localStorage.getItem(USER_KEY) } catch { return null }
   },
+  /** Rol yalnızca menüyü düzenler; asıl kontrol sunucudadır. */
+  get role() {
+    try {
+      const b64 = (this.token ?? '').split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
+      const claims = JSON.parse(atob(b64)) as Record<string, string>
+      return claims.role ?? claims['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ?? 'Admin'
+    } catch { return 'Admin' }
+  },
+  get isDemo() { return this.role === 'Demo' },
   set(token: string, user: string) {
     try {
       localStorage.setItem(TOKEN_KEY, token)

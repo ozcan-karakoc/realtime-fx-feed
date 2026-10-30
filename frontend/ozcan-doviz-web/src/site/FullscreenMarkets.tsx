@@ -62,7 +62,7 @@ export function FullscreenMarkets() {
       <div className="fs-body">
         <MarketBoards big />
       </div>
-      <footer className="fs-foot muted-light">Son güncelleme: {time(message?.updatedUtc)} · Çıkmak için Esc</footer>
+      <footer className="fs-foot muted-light">Son güncelleme: {time(message?.updatedUtc)}<span className="fs-esc"> · Çıkmak için Esc</span></footer>
     </div>
   )
 }

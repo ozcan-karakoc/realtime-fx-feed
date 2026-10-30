@@ -2,6 +2,16 @@
   <ItemGroup>
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.9.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.11" />
+    <!-- IIS'e e_sqlite3.dll kopyalanmasın: FTP sırasında kilitleniyor. Windows'un winsqlite3.dll dosyası kullanılır. -->
+    <PackageReference Include="SQLitePCLRaw.bundle_winsqlite3" Version="2.1.6" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.6">
+      <ExcludeAssets>all</ExcludeAssets>
+    </PackageReference>
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.6">
+      <ExcludeAssets>all</ExcludeAssets>
+    </PackageReference>
+    <!-- Yerel kütüphane pakete girmez (ExcludeAssets); uyarı yalnızca grafikte durduğu için. -->
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-2m69-gcr7-jv3q" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\OzcanDoviz.Infrastructure\OzcanDoviz.Infrastructure.csproj" />

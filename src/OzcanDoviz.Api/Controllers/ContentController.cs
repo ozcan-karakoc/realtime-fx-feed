@@ -98,6 +98,9 @@ public sealed class AdminContentController(
         request.Home.Stats ??= [];
         request.Instagram ??= new InstagramSection();
         request.Pages ??= new PagesSection();
+        request.Info ??= new InfoSection();
+        request.Info.Tables ??= [];
+        request.Info.Documents ??= [];
 
         var errors = SiteContentRules.Validate(request);
         if (errors.Count > 0)
@@ -106,7 +109,11 @@ public sealed class AdminContentController(
                 Title = "Site içeriği kaydedilemedi.",
             });
 
+        var previousDocuments = (await content.GetAsync(ct)).Info.Documents.Select(d => d.Url).ToList();
         var saved = await content.SaveAsync(request, User.Identity?.Name, ct);
+        // Listeden çıkarılan dokümanın dosyası da silinir; bağlantı herkese açık kalmasın.
+        foreach (var url in previousDocuments.Except(saved.Info.Documents.Select(d => d.Url)))
+            media.DeleteDocument(url[(url.LastIndexOf('/') + 1)..]);
         db.AuditEntries.Add(new AuditEntry
         {
             User = User.Identity?.Name ?? "",
@@ -134,6 +141,25 @@ public sealed class AdminContentController(
             await using var stream = file.OpenReadStream();
             var saved = await media.SaveAsync(stream, file.FileName, file.Length, ct);
             db.AuditEntries.Add(new AuditEntry { User = User.Identity?.Name ?? "", Action = "media.upload", Detail = saved.Name });
+            await db.SaveChangesAsync(ct);
+            return saved;
+        }
+        catch (MediaValidationException ex)
+        {
+            return BadRequest(new ProblemDetails { Title = ex.Message });
+        }
+    }
+
+    [HttpPost("documents")]
+    [RequestSizeLimit(21 * 1024 * 1024)]
+    public async Task<ActionResult<MediaFile>> UploadDocument(IFormFile file, CancellationToken ct)
+    {
+        if (file is null) return BadRequest(new ProblemDetails { Title = "Dosya seçilmedi." });
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            var saved = await media.SaveDocumentAsync(stream, file.FileName, file.Length, ct);
+            db.AuditEntries.Add(new AuditEntry { User = User.Identity?.Name ?? "", Action = "document.upload", Detail = $"{file.FileName} → {saved.Name}" });
             await db.SaveChangesAsync(ct);
             return saved;
         }

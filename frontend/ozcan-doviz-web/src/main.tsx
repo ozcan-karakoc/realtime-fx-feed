@@ -22,6 +22,7 @@ import { Displays } from './admin/Displays'
 import { DisplayPage } from './display/DisplayPage'
 import { SenderPage } from './display/SenderPage'
 import { Clients } from './admin/Clients'
+import { InfoPage } from './site/InfoPage'
 import { History } from './admin/History'
 import { Users } from './admin/Users'
 import { Audit } from './admin/Audit'
@@ -37,6 +38,7 @@ createRoot(document.getElementById('root')!).render(
           <Route path="canli-piyasalar" element={<Markets />} />
           <Route path="gecmis-kurlar" element={<RateHistory />} />
           <Route path="hakkimizda" element={<About />} />
+          <Route path="bilgi-toplum-hizmetleri" element={<InfoPage />} />
           <Route path="iletisim" element={<Contact />} />
         </Route>
         <Route path="/ekran/:id" element={<LiveProvider><DisplayPage /></LiveProvider>} />

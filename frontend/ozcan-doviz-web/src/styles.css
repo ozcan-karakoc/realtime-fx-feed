@@ -760,6 +760,37 @@ code { background: #f1f3f5; padding: 1px 4px; border-radius: 3px; font-size: 13p
   .about.with-image { grid-template-columns: 1fr; }
 }
 
+/* ---------- Bilgi Toplum Hizmetleri ---------- */
+.info-page { display: flex; flex-direction: column; gap: 24px; max-width: 980px; margin: 0 auto; width: 100%; }
+.info-intro { color: var(--board-muted); line-height: 1.7; margin: 0; white-space: pre-line; }
+.info-card { background: var(--board-card); border: 1px solid var(--board-line); border-radius: 12px; padding: 20px; }
+.info-card h3 { margin: 0 0 14px; color: var(--gold); font-size: 20px; }
+.info-scroll { overflow-x: auto; }
+.info-table { width: 100%; border-collapse: collapse; font-size: 14.5px; color: var(--board-text); }
+.info-table th, .info-table td { border: 1px solid var(--board-line); padding: 10px 14px; text-align: left; vertical-align: top; white-space: pre-line; overflow-wrap: anywhere; }
+.info-table th { color: var(--gold); font-weight: 600; }
+.info-table td:first-child { font-weight: 600; color: var(--board-muted); background: var(--board-bg); }
+.info-table.pair td:first-child { width: 34%; }
+.info-table td:not(:first-child) { font-weight: 500; }
+.info-table .info-sec td, .info-table .info-sec td:first-child { text-align: center; font-weight: 600; color: var(--board-text); background: transparent; padding: 13px 14px; }
+.doc-list { display: flex; flex-direction: column; gap: 10px; }
+.doc-link { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--board-line); border-radius: 8px; background: var(--board-bg); color: var(--board-text) !important; text-decoration: none; font-weight: 500; overflow-wrap: anywhere; }
+.doc-link:hover { border-color: var(--gold); }
+.doc-type { flex: none; min-width: 42px; text-align: center; padding: 3px 6px; border-radius: 5px; font-size: 11px; font-weight: 700; color: #1a1205; background: var(--gold); }
+.doc-size { margin-left: auto; flex: none; font-size: 12px; color: var(--board-muted); }
+.info-edit { border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin-bottom: 16px; }
+.info-edit-head { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 10px; }
+.info-edit-head .field { flex: 1; min-width: 200px; margin: 0; }
+.info-grid-wrap { overflow-x: auto; }
+.info-grid { width: 100%; border-collapse: collapse; }
+.info-grid td, .info-grid th { padding: 3px; vertical-align: top; }
+.info-grid input, .info-grid textarea { width: 100%; min-width: 110px; box-sizing: border-box; border: 1px solid var(--line); border-radius: 5px; padding: 7px 8px; font: inherit; font-size: 13.5px; background: var(--card); color: var(--text); resize: vertical; }
+.info-grid th input { font-weight: 600; }
+.info-grid .sec input { font-weight: 700; text-align: center; background: var(--blue-soft); }
+.info-grid .ops { width: 1%; white-space: nowrap; }
+.doc-edit { display: flex; gap: 8px; align-items: center; padding: 6px 0; flex-wrap: wrap; }
+.doc-edit input { flex: 1; min-width: 200px; border: 1px solid var(--line); border-radius: 5px; padding: 8px; font: inherit; background: var(--card); color: var(--text); }
+
 /* ---------- Tablet ---------- */
 @media (max-width: 1100px) {
   .site-head { gap: 12px; padding: 10px 18px; }

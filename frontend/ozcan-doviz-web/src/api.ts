@@ -145,6 +145,7 @@ export interface PublicContent {
   instagram: InstagramSection & { profileUrl?: string | null }
   locations: PublicLocation[]
   pages: PagesSection
+  info: InfoSection
 }
 
 export interface Slide {
@@ -169,6 +170,7 @@ export interface SiteContent {
   home: HomeSection
   instagram: InstagramSection
   pages: PagesSection
+  info: InfoSection
 }
 
 export interface MediaFile {
@@ -414,6 +416,18 @@ export interface PagesSection {
   history: boolean
   historyTitle: string
   calculator: boolean
+  info: boolean
+  infoTitle: string
+}
+
+export interface InfoRow { section: boolean; cells: string[] }
+export interface InfoTable { id: string; title: string; columns: string[]; rows: InfoRow[] }
+export interface InfoDocument { id: string; title: string; url: string; size: number }
+export interface InfoSection {
+  intro: string
+  tables: InfoTable[]
+  documentsTitle: string
+  documents: InfoDocument[]
 }
 
 export interface HistoryCode { code: string; name: string; group: 'altin' | 'doviz'; decimals: number }

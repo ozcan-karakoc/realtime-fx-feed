@@ -189,3 +189,82 @@ public sealed class DemoAccountTests(ApiFactory factory) : IClassFixture<ApiFact
         Assert.Null(masked.Note);
     }
 }
+
+public sealed class InfoPageTests(ApiFactory factory) : IClassFixture<ApiFactory>
+{
+    private async Task<HttpClient> AdminAsync()
+    {
+        var client = factory.CreateClient();
+        var login = await client.PostAsJsonAsync("/api/v1/auth/login", new { userName = "admin", password = "admin1234" });
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", (await login.Content.ReadFromJsonAsync<JsonObject>())!["token"]!.GetValue<string>());
+        return client;
+    }
+
+    private static MultipartFormDataContent File(string name, byte[] bytes) =>
+        new() { { new ByteArrayContent(bytes), "file", name } };
+
+    private static readonly byte[] Pdf = Encoding.ASCII.GetBytes("%PDF-1.7 demo dosya");
+
+    [Fact]
+    public async Task Tables_and_documents_are_published_and_removed_files_are_deleted()
+    {
+        var admin = await AdminAsync();
+        var web = factory.CreateClient();
+
+        var uploaded = await admin.PostAsync("/api/v1/admin/documents", File("rapor.pdf", Pdf));
+        Assert.Equal(HttpStatusCode.OK, uploaded.StatusCode);
+        var url = (await uploaded.Content.ReadFromJsonAsync<JsonObject>())!["url"]!.GetValue<string>();
+        Assert.StartsWith("/media/docs/", url);
+
+        var content = (await admin.GetFromJsonAsync<JsonObject>("/api/v1/admin/content"))!;
+        content["info"] = JsonNode.Parse($$"""
+            {"intro":" Bilgi ","documentsTitle":"Raporlar",
+             "tables":[{"title":"Künye","columns":["A","B"],"rows":[{"section":false,"cells":["Unvan"]},{"section":false,"cells":["",""]},{"section":true,"cells":["Ara başlık",""]}]}],
+             "documents":[{"title":"2025 Raporu","url":"{{url}}","size":10}]}
+            """);
+        (await admin.PutAsJsonAsync("/api/v1/admin/content", content)).EnsureSuccessStatusCode();
+
+        var info = (await web.GetFromJsonAsync<JsonObject>("/api/v1/content"))!["info"]!;
+        var rows = info["tables"]![0]!["rows"]!.AsArray();
+        Assert.Equal(2, rows.Count); // boş satır atılır
+        Assert.Equal(2, rows[0]!["cells"]!.AsArray().Count); // eksik hücre tamamlanır
+        Assert.Equal("Bilgi", info["intro"]!.GetValue<string>());
+        var file = await web.GetAsync(url);
+        Assert.Equal(HttpStatusCode.OK, file.StatusCode);
+        Assert.Equal("application/pdf", file.Content.Headers.ContentType!.MediaType);
+
+        // Listeden çıkan doküman herkese kapanır.
+        content["info"]!["documents"] = new JsonArray();
+        (await admin.PutAsJsonAsync("/api/v1/admin/content", content)).EnsureSuccessStatusCode();
+        Assert.Equal(HttpStatusCode.NotFound, (await web.GetAsync(url)).StatusCode);
+
+        // Sayfa kapalıysa içerik siteye gitmez.
+        content["pages"]!["info"] = false;
+        (await admin.PutAsJsonAsync("/api/v1/admin/content", content)).EnsureSuccessStatusCode();
+        Assert.Empty((await web.GetFromJsonAsync<JsonObject>("/api/v1/content"))!["info"]!["tables"]!.AsArray());
+        content["pages"]!["info"] = true;
+        (await admin.PutAsJsonAsync("/api/v1/admin/content", content)).EnsureSuccessStatusCode();
+    }
+
+    [Theory]
+    [InlineData("zararli.html", "<script>alert(1)</script>")]
+    [InlineData("zararli.svg", "<svg onload=alert(1)>")]
+    [InlineData("sahte.pdf", "<html>pdf degil</html>")]
+    [InlineData("program.exe", "MZ")]
+    public async Task Unsafe_documents_are_rejected(string name, string body)
+    {
+        var admin = await AdminAsync();
+        Assert.Equal(HttpStatusCode.BadRequest, (await admin.PostAsync("/api/v1/admin/documents", File(name, Encoding.ASCII.GetBytes(body)))).StatusCode);
+    }
+
+    [Fact]
+    public async Task Foreign_document_link_is_rejected_and_upload_needs_login()
+    {
+        var admin = await AdminAsync();
+        var content = (await admin.GetFromJsonAsync<JsonObject>("/api/v1/admin/content"))!;
+        var saved = content.DeepClone();
+        saved["info"]!["documents"] = JsonNode.Parse("""[{"title":"x","url":"https://evil.example/a.pdf","size":1}]""");
+        Assert.Equal(HttpStatusCode.BadRequest, (await admin.PutAsJsonAsync("/api/v1/admin/content", saved)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await factory.CreateClient().PostAsync("/api/v1/admin/documents", File("a.pdf", Pdf))).StatusCode);
+    }
+}

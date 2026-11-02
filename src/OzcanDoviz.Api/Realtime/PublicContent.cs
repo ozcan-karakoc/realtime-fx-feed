@@ -26,7 +26,8 @@ public sealed record PublicContentMessage(
     HomeSection Home,
     PublicInstagram Instagram,
     IReadOnlyList<PublicLocation> Locations,
-    PagesSection Pages);
+    PagesSection Pages,
+    InfoSection Info);
 
 public static class PublicContent
 {
@@ -63,7 +64,9 @@ public static class PublicContent
                 .Where(l => !string.IsNullOrWhiteSpace(l.MapQuery))
                 .Select(l => new PublicLocation(l.Name, l.Address, l.Phone, l.WorkingHours, l.EmbedUrl(), l.DirectionsUrl()))
                 .ToList(),
-            c.Pages);
+            c.Pages,
+            // Sayfa kapalıysa içeriği de siteye gitmez.
+            c.Pages.Info ? c.Info : new InfoSection());
     }
 
     private static string Label(SocialLink s) => s.Type switch

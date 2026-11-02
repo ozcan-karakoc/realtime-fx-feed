@@ -20,6 +20,68 @@ public sealed class SiteContent
     public HomeSection Home { get; set; } = HomeSection.Demo();
     public InstagramSection Instagram { get; set; } = new();
     public PagesSection Pages { get; set; } = new();
+    /// <summary>Dosyada henüz yoksa örnek tabloyla başlar; panelden gerçek şirket bilgileriyle değiştirilir.</summary>
+    public InfoSection Info { get; set; } = InfoSection.Demo();
+}
+
+/// <summary>Bilgi Toplum Hizmetleri sayfası: serbest tablolar ve yüklenen dokümanlar. Metinler düz yazıdır, HTML yorumlanmaz.</summary>
+public sealed class InfoSection
+{
+    public string Intro { get; set; } = "";
+    public List<InfoTable> Tables { get; set; } = [];
+    public string DocumentsTitle { get; set; } = "Dokümanlar";
+    public List<InfoDocument> Documents { get; set; } = [];
+
+    public static InfoSection Demo()
+    {
+        static InfoRow Row(string label, string value) => new() { Cells = [label, value] };
+        return new InfoSection
+        {
+            Tables =
+            [
+                new InfoTable
+                {
+                    Title = "Şirket Bilgileri",
+                    Columns = ["", ""],
+                    Rows =
+                    [
+                        Row("Şirket türü", "A.Ş."),
+                        Row("Ticaret unvanı", "DEMO Değerli Madenler A.Ş."),
+                        Row("MERSİS", "0000000000000000"),
+                        Row("Adres", "Kapalıçarşı, Fatih / İstanbul"),
+                        new InfoRow { Section = true, Cells = ["İletişim Bilgileri", ""] },
+                        Row("Telefon", "0 (212) 555 00 00"),
+                        Row("E-posta", "info@demo.com"),
+                    ],
+                },
+            ],
+        };
+    }
+}
+
+public sealed class InfoTable
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString("N")[..8];
+    public string Title { get; set; } = "";
+    /// <summary>Sütun başlıkları; sayısı sütun sayısıdır. Hepsi boşsa başlık satırı gösterilmez.</summary>
+    public List<string> Columns { get; set; } = [];
+    public List<InfoRow> Rows { get; set; } = [];
+}
+
+public sealed class InfoRow
+{
+    /// <summary>Tüm sütunlara yayılan ara başlık (ör. "İletişim Bilgileri"); metni ilk hücrededir.</summary>
+    public bool Section { get; set; }
+    public List<string> Cells { get; set; } = [];
+}
+
+public sealed class InfoDocument
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString("N")[..8];
+    public string Title { get; set; } = "";
+    /// <summary>Yüklenen dosyanın yolu (<c>/media/docs/…</c>).</summary>
+    public string Url { get; set; } = "";
+    public long Size { get; set; }
 }
 
 /// <summary>Header logosu ve footer görseli (yüklenen fotoğraflardan).</summary>
@@ -242,8 +304,35 @@ public static class SiteContentRules
         if ((c.Home.IntroText ?? "").Length > 2000 || (c.Home.CtaText ?? "").Length > 1000) errors.Add("Anasayfa metni çok uzun.");
         if (c.Instagram.Count is < 1 or > 24) errors.Add("Instagram gönderi sayısı 1-24 arası olmalı.");
         if (string.IsNullOrWhiteSpace(c.Pages.HistoryTitle) || c.Pages.HistoryTitle.Length > 40) errors.Add("Geçmiş Kurlar menü adı 1-40 karakter olmalı.");
+        if (string.IsNullOrWhiteSpace(c.Pages.InfoTitle) || c.Pages.InfoTitle.Length > 40) errors.Add("Bilgi Toplum Hizmetleri menü adı 1-40 karakter olmalı.");
+        ValidateInfo(c.Info, errors);
         return errors;
     }
+
+    private static void ValidateInfo(InfoSection info, List<string> errors)
+    {
+        if (info.Intro.Length > 5000) errors.Add("Bilgi Toplum Hizmetleri açıklaması en fazla 5.000 karakter olabilir.");
+        if (info.DocumentsTitle.Length > 120) errors.Add("Doküman bölümü başlığı çok uzun.");
+        if (info.Tables.Count > 20) errors.Add("En fazla 20 tablo olabilir.");
+        foreach (var t in info.Tables)
+        {
+            var name = string.IsNullOrWhiteSpace(t.Title) ? "Başlıksız tablo" : t.Title;
+            if (t.Title.Length > 120) errors.Add($"{name}: başlık çok uzun.");
+            if (t.Columns.Count is < 1 or > 8) errors.Add($"{name}: sütun sayısı 1-8 arası olmalı.");
+            if (t.Rows.Count > 300) errors.Add($"{name}: en fazla 300 satır olabilir.");
+            if (t.Columns.Any(h => h.Length > 120) || t.Rows.Any(r => r.Cells.Any(x => x.Length > 2000))) errors.Add($"{name}: hücre metni çok uzun.");
+        }
+        if (info.Documents.Count > 200) errors.Add("En fazla 200 doküman olabilir.");
+        foreach (var d in info.Documents)
+        {
+            if (string.IsNullOrWhiteSpace(d.Title) || d.Title.Length > 200) errors.Add("Doküman adı 1-200 karakter olmalı.");
+            if (!IsDocumentUrl(d.Url)) errors.Add($"Doküman '{d.Title}': dosya yüklenmeli.");
+        }
+    }
+
+    /// <summary>Doküman yalnızca bu sitenin yüklediği dosya olabilir.</summary>
+    public static bool IsDocumentUrl(string? url) =>
+        url is not null && url.StartsWith("/media/docs/", StringComparison.Ordinal) && !url.Contains("..", StringComparison.Ordinal);
 
     /// <summary>Bağlantının tıklanabilir adresi; değer geçersizse null. Kullanıcı girdisi asla doğrudan href olmaz.</summary>
     public static string? SocialHref(SocialLink s)
@@ -316,4 +405,7 @@ public sealed class PagesSection
     public string HistoryTitle { get; set; } = "Geçmiş Kurlar";
     /// <summary>Geçmiş Kurlar sayfasının altındaki hesaplayıcı.</summary>
     public bool Calculator { get; set; } = true;
+    /// <summary>Bilgi Toplum Hizmetleri sayfası.</summary>
+    public bool Info { get; set; } = true;
+    public string InfoTitle { get; set; } = "Bilgi Toplum Hizmetleri";
 }

@@ -12,13 +12,14 @@ import { Ticker } from './Ticker'
 
 type NavItem = { to: string; label: string; end?: boolean }
 
-/** Menü: Anasayfa · Canlı Piyasalar · Geçmiş Kurlar (panelden açılıp kapanır) · Hakkımızda · İletişim */
-function navItems(pages?: { history: boolean; historyTitle: string }): NavItem[] {
+/** Menü: Anasayfa · Canlı Piyasalar · Geçmiş Kurlar · Hakkımızda · Bilgi Toplum Hizmetleri · İletişim (Geçmiş Kurlar ve Bilgi Toplum panelden açılıp kapanır) */
+function navItems(pages?: { history: boolean; historyTitle: string; info: boolean; infoTitle: string }): NavItem[] {
   return [
     { to: '/', label: 'Anasayfa', end: true },
     { to: '/canli-piyasalar', label: 'Canlı Piyasalar' },
     ...(pages?.history ?? true ? [{ to: '/gecmis-kurlar', label: pages?.historyTitle || 'Geçmiş Kurlar' }] : []),
     { to: '/hakkimizda', label: 'Hakkımızda' },
+    ...(pages?.info ?? true ? [{ to: '/bilgi-toplum-hizmetleri', label: pages?.infoTitle || 'Bilgi Toplum Hizmetleri' }] : []),
     { to: '/iletisim', label: 'İletişim' },
   ]
 }

@@ -34,7 +34,34 @@ internal sealed class SiteContentStore : ISiteContentStore
             s.Order = ++order;
             if (string.IsNullOrWhiteSpace(s.Id)) s.Id = Guid.NewGuid().ToString("N")[..8];
         }
+        Normalize(content.Info);
         return _file.WriteAsync(content, cancellationToken);
+    }
+
+    /// <summary>Boş satırlar atılır; her satır sütun sayısı kadar hücre taşır.</summary>
+    private static void Normalize(InfoSection info)
+    {
+        info.Intro = (info.Intro ?? "").Trim();
+        info.DocumentsTitle = (info.DocumentsTitle ?? "").Trim();
+        foreach (var t in info.Tables)
+        {
+            if (string.IsNullOrWhiteSpace(t.Id)) t.Id = Guid.NewGuid().ToString("N")[..8];
+            t.Title = (t.Title ?? "").Trim();
+            t.Columns = t.Columns.Select(h => (h ?? "").Trim()).ToList();
+            t.Rows = t.Rows
+                .Select(r => new InfoRow
+                {
+                    Section = r.Section,
+                    Cells = Enumerable.Range(0, t.Columns.Count).Select(i => i < r.Cells.Count ? (r.Cells[i] ?? "").Trim() : "").ToList(),
+                })
+                .Where(r => r.Cells.Any(x => x.Length > 0))
+                .ToList();
+        }
+        foreach (var d in info.Documents)
+        {
+            if (string.IsNullOrWhiteSpace(d.Id)) d.Id = Guid.NewGuid().ToString("N")[..8];
+            d.Title = (d.Title ?? "").Trim();
+        }
     }
 
     private static SiteContent Defaults() => new()
@@ -61,6 +88,7 @@ public sealed class MediaOptions
     /// <summary>Fotoğraf klasörü; göreli yol uygulama klasörüne göre çözülür.</summary>
     public string Directory { get; set; } = "App_Data/uploads";
     public long MaxBytes { get; set; } = 5 * 1024 * 1024;
+    public long MaxDocumentBytes { get; set; } = 20 * 1024 * 1024;
 }
 
 public sealed class MediaStorage : IMediaStorage
@@ -75,12 +103,16 @@ public sealed class MediaStorage : IMediaStorage
         [".webp"] = ".webp",
     };
 
+    public const string DocumentsUrlPrefix = UrlPrefix + "docs/";
+
     private readonly long _maxBytes;
+    private readonly long _maxDocumentBytes;
 
     public MediaStorage(IOptions<MediaOptions> options, IHostEnvironment env)
     {
         Root = Path.GetFullPath(Path.Combine(env.ContentRootPath, options.Value.Directory));
         _maxBytes = options.Value.MaxBytes;
+        _maxDocumentBytes = options.Value.MaxDocumentBytes;
         System.IO.Directory.CreateDirectory(Root);
     }
 
@@ -133,6 +165,57 @@ public sealed class MediaStorage : IMediaStorage
         File.Delete(path);
         return true;
     }
+
+    public async Task<MediaFile> SaveDocumentAsync(Stream content, string fileName, long length, CancellationToken cancellationToken)
+    {
+        var limit = $"Doküman en fazla {_maxDocumentBytes / 1024 / 1024} MB olabilir.";
+        if (length <= 0) throw new MediaValidationException("Dosya boş.");
+        if (length > _maxDocumentBytes) throw new MediaValidationException(limit);
+        var ext = Path.GetExtension(fileName ?? "").ToLowerInvariant();
+        if (ext == ".jpeg") ext = ".jpg";
+
+        // HTML veya betik içeren dosyalar kabul edilmez: uzantı beyaz listede olmalı ve imzası uymalı.
+        var head = new byte[12];
+        var read = await content.ReadAtLeastAsync(head, head.Length, throwOnEndOfStream: false, cancellationToken);
+        if (!DocumentMatches(ext, head.AsSpan(0, read)))
+            throw new MediaValidationException("Yalnızca PDF, Word, Excel, PowerPoint, JPG veya PNG yüklenebilir; dosya içeriği uzantısıyla uyuşmalı.");
+
+        var dir = Path.Combine(Root, "docs");
+        System.IO.Directory.CreateDirectory(dir);
+        var name = $"{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid():N}"[..26] + ext;
+        var path = Path.Combine(dir, name);
+        await using (var file = File.Create(path))
+        {
+            await file.WriteAsync(head.AsMemory(0, read), cancellationToken);
+            await content.CopyToAsync(file, cancellationToken);
+            if (file.Length > _maxDocumentBytes)
+            {
+                file.Close();
+                File.Delete(path);
+                throw new MediaValidationException(limit);
+            }
+        }
+        var info = new FileInfo(path);
+        return new MediaFile(name, DocumentsUrlPrefix + name, info.Length, info.CreationTimeUtc);
+    }
+
+    public bool DeleteDocument(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name != Path.GetFileName(name)) return false;
+        var path = Path.Combine(Root, "docs", name);
+        if (!File.Exists(path)) return false;
+        File.Delete(path);
+        return true;
+    }
+
+    internal static bool DocumentMatches(string ext, ReadOnlySpan<byte> b) => ext switch
+    {
+        ".pdf" => b.StartsWith("%PDF-"u8),
+        ".doc" or ".xls" or ".ppt" => b.StartsWith(new byte[] { 0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1 }),
+        ".docx" or ".xlsx" or ".pptx" => b.StartsWith(new byte[] { 0x50, 0x4B, 0x03, 0x04 }),
+        ".jpg" or ".png" => Detect(b) == ext,
+        _ => false,
+    };
 
     internal static string? Detect(ReadOnlySpan<byte> b)
     {

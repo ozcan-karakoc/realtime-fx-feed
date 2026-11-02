@@ -6,8 +6,9 @@ import {
 } from '../api'
 import { SocialIcon } from '../site/SocialIcon'
 import { dateTime } from '../format'
+import { InfoTab } from './InfoTab'
 
-type Tab = 'pages' | 'home' | 'ticker' | 'slides' | 'branding' | 'social' | 'instagram' | 'about' | 'contact' | 'mobile'
+type Tab = 'pages' | 'home' | 'ticker' | 'slides' | 'branding' | 'social' | 'instagram' | 'about' | 'info' | 'contact' | 'mobile'
 
 const tabs: { key: Tab; label: string }[] = [
   { key: 'pages', label: 'Menü ve Sayfalar' },
@@ -18,6 +19,7 @@ const tabs: { key: Tab; label: string }[] = [
   { key: 'social', label: 'Sosyal Medya' },
   { key: 'instagram', label: 'Instagram' },
   { key: 'about', label: 'Hakkımızda' },
+  { key: 'info', label: 'Bilgi Toplum Hizmetleri' },
   { key: 'contact', label: 'İletişim' },
   { key: 'mobile', label: 'Mobil Servis' },
 ]
@@ -94,6 +96,7 @@ export function SiteContentPage() {
           {tab === 'ticker' && <TickerTab content={content} patch={patch} />}
           {tab === 'slides' && <SlidesTab content={content} patch={patch} media={media} reloadMedia={loadMedia} />}
           {tab === 'about' && <AboutTab content={content} patch={patch} media={media} reloadMedia={loadMedia} />}
+          {tab === 'info' && <InfoTab content={content} patch={patch} />}
           {tab === 'contact' && <ContactTab content={content} patch={patch} media={media} reloadMedia={loadMedia} />}
           {tab === 'mobile' && <MobileTab content={content} patch={patch} />}
         </div>
@@ -112,7 +115,7 @@ function PagesTab({ content, patch }: TabProps) {
   const set = (x: Partial<SiteContent['pages']>) => patch({ pages: { ...p, ...x } })
   return (
     <div>
-      <p className="muted">Site menüsü: Anasayfa · Canlı Piyasalar · <b>{p.history ? p.historyTitle || 'Geçmiş Kurlar' : '(gizli)'}</b> · Hakkımızda · İletişim</p>
+      <p className="muted">Site menüsü: Anasayfa · Canlı Piyasalar · <b>{p.history ? p.historyTitle || 'Geçmiş Kurlar' : '(gizli)'}</b> · Hakkımızda · <b>{p.info ? p.infoTitle || 'Bilgi Toplum Hizmetleri' : '(gizli)'}</b> · İletişim</p>
       <div className="page-toggle">
         <label className="switch"><input type="checkbox" checked={p.history} onChange={(e) => set({ history: e.target.checked })} /><span /></label>
         <div className="grow">
@@ -127,6 +130,14 @@ function PagesTab({ content, patch }: TabProps) {
           <strong>Hesaplayıcı</strong>
           <div className="muted small">Geçmiş Kurlar sayfasının altında: güncel fiyatımızla birim ↔ TL ve seçili aralıkta getiri hesabı.</div>
         </div>
+      </div>
+      <div className="page-toggle">
+        <label className="switch"><input type="checkbox" checked={p.info} onChange={(e) => set({ info: e.target.checked })} /><span /></label>
+        <div className="grow">
+          <strong>Bilgi Toplum Hizmetleri sayfası</strong>
+          <div className="muted small">Açıksa menüde görünür: şirket bilgisi tabloları ve dokümanlar. İçeriği aynı adlı sekmeden düzenlenir.</div>
+        </div>
+        <label className="field"><span>Menü adı</span><input value={p.infoTitle} maxLength={40} disabled={!p.info} onChange={(e) => set({ infoTitle: e.target.value })} /></label>
       </div>
     </div>
   )
